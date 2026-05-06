@@ -1,0 +1,14 @@
+{
+  "appId": "it.calcabrini.casa",
+  "appName": "Casa",
+  "webDir": "dist",
+  "android": {
+    "buildOptions": {
+      "keystorePath": null,
+      "keystoreAlias": null
+    }
+  },
+  "plugins": {
+    "OpcUa": {}
+  }
+}

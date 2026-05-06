@@ -1,0 +1,9 @@
+{
+	"appId": "it.calcabrini.casa",
+	"appName": "Casa",
+	"webDir": "dist",
+	"android": {},
+	"plugins": {
+		"OpcUa": {}
+	}
+}
