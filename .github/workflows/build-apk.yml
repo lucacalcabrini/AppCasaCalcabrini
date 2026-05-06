@@ -16,7 +16,7 @@ jobs:
           cache: 'npm'
       - uses: actions/setup-java@v4
         with:
-          java-version: '17'
+          java-version: '21'
           distribution: 'temurin'
       - uses: android-actions/setup-android@v3
       - run: npm ci
