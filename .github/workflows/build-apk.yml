@@ -10,23 +10,48 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
           cache: 'npm'
+
       - uses: actions/setup-java@v4
         with:
           java-version: '21'
           distribution: 'temurin'
+
       - uses: android-actions/setup-android@v3
+
       - run: npm ci
+
       - run: npm run build
+
       - run: npx cap sync android
+
+      - name: Fix conflitti librerie
+        run: |
+          cat >> android/app/build.gradle << 'GRADLE'
+          android {
+            packagingOptions {
+              resources {
+                excludes += [
+                  'META-INF/INDEX.LIST',
+                  'META-INF/io.netty.versions.properties',
+                  'META-INF/DEPENDENCIES',
+                  'META-INF/*.kotlin_module'
+                ]
+              }
+            }
+          }
+          GRADLE
+
       - name: Build APK
         run: |
           cd android
           chmod +x gradlew
           ./gradlew assembleDebug --no-daemon
+
       - uses: actions/upload-artifact@v4
         with:
           name: Casa-APK
