@@ -29,8 +29,9 @@ jobs:
 
       - run: npx cap sync android
 
-      - name: Fix conflitti librerie
+      - name: Fix dipendenze e conflitti
         run: |
+          sed -i "s/bcprov-jdk15on:1.70/bcprov-jdk18on:1.75/g" android/app/build.gradle
           cat >> android/app/build.gradle << 'GRADLE'
           android {
             packagingOptions {
@@ -46,7 +47,11 @@ jobs:
                 ]
                 pickFirsts += [
                   'org/bouncycastle/**',
-                  'META-INF/services/**'
+                  'META-INF/services/**',
+                  'META-INF/versions/**',
+                  'com/sun/activation/**',
+                  'com/sun/istack/**',
+                  'javax/activation/**'
                 ]
               }
             }
