@@ -24,39 +24,20 @@ jobs:
       - uses: android-actions/setup-android@v3
 
       - run: npm ci
-
       - run: npm run build
-
       - run: npx cap sync android
 
-      - name: Fix dipendenze e conflitti
+      - name: Fix conflitti librerie
         run: |
-          sed -i "s/bcprov-jdk15on:1.70/bcprov-jdk18on:1.75/g" android/app/build.gradle
           cat >> android/app/build.gradle << 'GRADLE'
           android {
             packagingOptions {
               resources {
-                pickFirsts += [
+                excludes += [
                   'META-INF/INDEX.LIST',
-                  'META-INF/DEPENDENCIES',
-                  'META-INF/LICENSE',
-                  'META-INF/LICENSE.txt',
-                  'META-INF/LICENSE.md',
-                  'META-INF/NOTICE',
-                  'META-INF/NOTICE.txt',
-                  'META-INF/NOTICE.md',
-                  'META-INF/ASL2.0',
                   'META-INF/io.netty.versions.properties',
-                  'META-INF/*.kotlin_module',
-                  'META-INF/services/reactor.blockhound.integration.BlockHoundIntegration',
-                  'about.html',
-                  'plugin.properties',
-                  'org/bouncycastle/**',
-                  'META-INF/services/**',
-                  'META-INF/versions/**',
-                  'com/sun/activation/**',
-                  'com/sun/istack/**',
-                  'javax/activation/**'
+                  'META-INF/DEPENDENCIES',
+                  'META-INF/*.kotlin_module'
                 ]
               }
             }
