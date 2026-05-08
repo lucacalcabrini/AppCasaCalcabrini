@@ -1,0 +1,182 @@
+/* ============================================================
+   Casa Calcabrini — Tema scuro industriale
+   ============================================================ */
+
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Outfit:wght@300;400;600;700&display=swap');
+
+:root {
+  --bg-primary: #0a0e1a;
+  --bg-card: #111827;
+  --bg-card-hover: #1a2235;
+  --bg-input: #1e293b;
+  --border: #1e293b;
+  --border-active: #3b82f6;
+  --text-primary: #f1f5f9;
+  --text-secondary: #94a3b8;
+  --text-muted: #64748b;
+  --accent-blue: #3b82f6;
+  --accent-green: #22c55e;
+  --accent-red: #ef4444;
+  --accent-amber: #f59e0b;
+  --accent-orange: #f97316;
+  --radius: 14px;
+  --font-body: 'Outfit', sans-serif;
+  --font-mono: 'JetBrains Mono', monospace;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+  font-family: var(--font-body);
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  -webkit-font-smoothing: antialiased;
+  overflow-x: hidden;
+  min-height: 100vh;
+  padding-bottom: 80px;
+}
+
+/* Header */
+.header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 16px 20px 12px;
+  position: sticky; top: 0; z-index: 100;
+  background: var(--bg-primary);
+  border-bottom: 1px solid var(--border);
+}
+.header h1 { font-size: 20px; font-weight: 700; letter-spacing: -0.5px; }
+.header-status {
+  display: flex; align-items: center; gap: 6px;
+  font-size: 11px; font-weight: 600; font-family: var(--font-mono);
+  padding: 4px 10px; border-radius: 20px;
+}
+.status-local { background: #052e16; color: var(--accent-green); }
+.status-remote { background: #1e1b4b; color: #818cf8; }
+.status-offline { background: #450a0a; color: var(--accent-red); }
+.status-dot {
+  width: 6px; height: 6px; border-radius: 50%;
+  background: currentColor;
+  animation: pulse 2s infinite;
+}
+@keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.4; } }
+
+/* Tab Bar */
+.tab-bar {
+  display: flex; gap: 0;
+  position: fixed; bottom: 0; left: 0; right: 0;
+  background: var(--bg-card);
+  border-top: 1px solid var(--border);
+  z-index: 100;
+  padding-bottom: env(safe-area-inset-bottom, 8px);
+}
+.tab-btn {
+  flex: 1; display: flex; flex-direction: column; align-items: center;
+  gap: 2px; padding: 10px 0 6px;
+  background: none; border: none; color: var(--text-muted);
+  font-family: var(--font-body); font-size: 11px; font-weight: 600;
+  cursor: pointer; transition: color 0.2s;
+}
+.tab-btn.active { color: var(--accent-blue); }
+.tab-btn .tab-icon { font-size: 22px; }
+.tab-badge {
+  position: absolute; top: 4px; right: calc(50% - 18px);
+  background: var(--accent-red); color: white;
+  font-size: 9px; font-weight: 700;
+  min-width: 16px; height: 16px; border-radius: 8px;
+  display: flex; align-items: center; justify-content: center;
+  padding: 0 4px;
+}
+
+/* Content */
+.content { padding: 16px 16px 0; }
+
+/* Cards */
+.card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 16px;
+  margin-bottom: 12px;
+  transition: border-color 0.2s;
+}
+.card:active { border-color: var(--border-active); }
+
+/* Device Row */
+.device-row {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 14px 16px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  margin-bottom: 8px;
+}
+.device-info { display: flex; align-items: center; gap: 12px; }
+.device-icon { font-size: 24px; }
+.device-name { font-size: 14px; font-weight: 600; }
+.device-temp { font-size: 12px; color: var(--text-secondary); font-family: var(--font-mono); }
+
+/* Toggle */
+.toggle {
+  width: 50px; height: 28px; border-radius: 14px;
+  background: var(--bg-input); border: 2px solid var(--border);
+  position: relative; cursor: pointer; transition: all 0.3s;
+  flex-shrink: 0;
+}
+.toggle.on { background: var(--accent-blue); border-color: var(--accent-blue); }
+.toggle-knob {
+  width: 20px; height: 20px; border-radius: 50%;
+  background: white; position: absolute; top: 2px; left: 2px;
+  transition: transform 0.3s;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+}
+.toggle.on .toggle-knob { transform: translateX(22px); }
+
+/* Alarm Card */
+.alarm-card {
+  display: flex; align-items: center; gap: 12px;
+  padding: 14px 16px;
+  border-radius: var(--radius);
+  margin-bottom: 8px;
+  border: 1px solid;
+}
+.alarm-active { background: #2a1215; border-color: #7f1d1d; }
+.alarm-inactive { background: var(--bg-card); border-color: var(--border); }
+.alarm-new { animation: alarmPulse 1s ease-in-out infinite; }
+@keyframes alarmPulse { 0%,100% { background: #2a1215; } 50% { background: #450a0a; } }
+.alarm-dot {
+  width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0;
+}
+.alarm-dot-active { background: var(--accent-red); }
+.alarm-dot-inactive { background: var(--text-muted); }
+.alarm-name { font-size: 14px; font-weight: 600; flex: 1; }
+.alarm-priority {
+  font-size: 10px; font-weight: 700; font-family: var(--font-mono);
+  padding: 2px 8px; border-radius: 6px;
+}
+.prio-alta { background: #7f1d1d; color: #fca5a5; }
+.prio-normale { background: #78350f; color: #fcd34d; }
+
+/* Section Title */
+.section-title {
+  font-size: 12px; font-weight: 700; color: var(--text-muted);
+  text-transform: uppercase; letter-spacing: 1px;
+  margin: 20px 0 10px;
+}
+
+/* Spegni Tutte button */
+.btn-danger {
+  width: 100%; padding: 14px;
+  background: #1c1917; border: 1px solid #7f1d1d;
+  color: var(--accent-red); border-radius: var(--radius);
+  font-family: var(--font-body); font-size: 14px; font-weight: 700;
+  cursor: pointer; transition: all 0.2s;
+  margin-top: 16px;
+}
+.btn-danger:active { background: #450a0a; }
+
+/* Empty state */
+.empty-state {
+  text-align: center; padding: 40px 20px;
+  color: var(--text-muted);
+}
+.empty-state .emoji { font-size: 48px; margin-bottom: 12px; }
