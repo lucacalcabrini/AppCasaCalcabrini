@@ -1,6 +1,9 @@
-# Casa App — Supervisore S7-1200
+# Casa Calcabrini — App Supervisore V2.0
 
-App Android per supervisione luci e riscaldamento via OPC UA (locale WiFi) e AWS IoT Core (remoto).
+App Android per supervisione e controllo domotico.
 
-## Build automatico
-Ogni push su `main` → GitHub Actions compila l'APK → scaricabile dalla sezione Releases.
+## Comunicazione
+- **WiFi casa** → OPC UA diretto al PLC (192.168.178.250:4840)
+- **Fuori casa** → AWS IoT Core MQTT (casa/stato, casa/cmd)
+
+## Payload compatto
