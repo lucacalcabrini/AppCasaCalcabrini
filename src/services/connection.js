@@ -1,27 +1,13 @@
-// ============================================================
-// connection.js — Gestore dual-path
-//
-// All'avvio: ping PLC_IP
-//   → risponde  → modalità LOCALE (OPC UA, polling 2s)
-//   → non risponde → modalità REMOTA (MQTT via AWS IoT Core)
-//
-// L'app espone un'unica interfaccia: onData, sendCommand
-// indipendentemente dal path attivo.
-// ============================================================
-
-import { PLC_IP, PING_TIMEOUT_MS } from '../config';
+﻿import { PLC_IP, PING_TIMEOUT_MS } from '../config';
 import { mqttConnect, mqttSendCommand, mqttDisconnect, onMqttData, onMqttStatus } from './mqtt';
 import { opcuaInit, opcuaConnect, opcuaReadAll, opcuaSendCommand, opcuaDisconnect } from './opcua';
 import { buildCommand, buildStatoRequest } from './parser';
 
-let mode = null;           // 'local' | 'remote' | null
+let mode = null;
 let dataCallback = null;
 let statusCallback = null;
 let pollTimer = null;
 
-/**
- * Rileva la modalità e si connette.
- */
 export async function connectionStart() {
   const local = await isPlcReachable();
 
@@ -52,7 +38,6 @@ function startRemote() {
 }
 
 function startLocalPolling() {
-  // Polling ogni 2 secondi in locale
   const poll = async () => {
     try {
       const data = await opcuaReadAll();
@@ -61,13 +46,10 @@ function startLocalPolling() {
       console.error('OPC UA lettura fallita:', e);
     }
   };
-  poll(); // Prima lettura immediata
+  poll();
   pollTimer = setInterval(poll, 2000);
 }
 
-/**
- * Invia comando ON/OFF.
- */
 export async function sendCommand(idx, on) {
   if (mode === 'local') {
     await opcuaSendCommand(idx, on);
@@ -76,19 +58,12 @@ export async function sendCommand(idx, on) {
   }
 }
 
-/**
- * Forza richiesta stato completo.
- */
 export function requestFullState() {
   if (mode === 'remote') {
     mqttSendCommand(buildStatoRequest());
   }
-  // In locale il polling aggiorna automaticamente
 }
 
-/**
- * Disconnette tutto.
- */
 export async function connectionStop() {
   if (pollTimer) { clearInterval(pollTimer); pollTimer = null; }
   if (mode === 'local') await opcuaDisconnect();
@@ -96,29 +71,15 @@ export async function connectionStop() {
   mode = null;
 }
 
-/**
- * Registra callback dati. Riceve { devices, alarms }
- */
 export function onData(cb) { dataCallback = cb; }
-
-/**
- * Registra callback stato. Riceve (mode, status)
- */
 export function onStatus(cb) { statusCallback = cb; }
-
-/**
- * Ritorna la modalità corrente.
- */
 export function getMode() { return mode; }
 
-/**
- * Ping al PLC per capire se siamo in rete locale.
- */
 async function isPlcReachable() {
   try {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), PING_TIMEOUT_MS);
-    const resp = await fetch(`http://${PLC_IP}/`, {
+    await fetch(`http://${PLC_IP}/`, {
       method: 'HEAD',
       mode: 'no-cors',
       signal: controller.signal,

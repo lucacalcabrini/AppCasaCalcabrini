@@ -1,17 +1,5 @@
-// ============================================================
-// parser.js — Parser payload compatto PLC ↔ App
-//
-// Payload: "1:20.9;0:19.9;...;0;0|0;0;A;0;1;N;0;..."
-//           ← 16 utenze →  |  ← 32 allarmi →
-// ============================================================
+﻿import { DEVICES, ALARMS } from '../config';
 
-import { DEVICES, ALARMS } from '../config';
-
-/**
- * Parsa il payload compatto dal PLC.
- * @param {string} raw - payload grezzo da casa/stato
- * @returns {{ devices: Array, alarms: Array }}
- */
 export function parsePayload(raw) {
   if (!raw || typeof raw !== 'string') return { devices: [], alarms: [] };
 
@@ -31,12 +19,7 @@ function parseDevices(section) {
     const acceso = parti[0] === '1';
     const temp = parti.length > 1 ? parseFloat(parti[1]) : null;
 
-    return {
-      idx,
-      ...def,
-      acceso,
-      temp,
-    };
+    return { idx, ...def, acceso, temp };
   }).filter(Boolean);
 }
 
@@ -51,30 +34,14 @@ function parseAlarms(section) {
     const nuovo = code === 'A' || code === 'N';
     const alta = code === 'A';
 
-    return {
-      idx,
-      ...def,
-      attivo,
-      nuovo,
-      alta: alta || def.alta,
-      code,
-    };
+    return { idx, ...def, attivo, nuovo, alta: alta || def.alta, code };
   }).filter(Boolean);
 }
 
-/**
- * Costruisce il comando compatto per il PLC.
- * @param {number} idx - indice dispositivo (0-15)
- * @param {boolean} on - true=ON, false=OFF
- * @returns {string} es. "0:1"
- */
 export function buildCommand(idx, on) {
   return `${idx}:${on ? '1' : '0'}`;
 }
 
-/**
- * Comando per forzare publish completo.
- */
 export function buildStatoRequest() {
   return 'STATO';
 }
