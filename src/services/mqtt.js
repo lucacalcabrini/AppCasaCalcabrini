@@ -28,7 +28,7 @@ async function buildSignedUrl() {
   const signed = await signer.presign(
     {
       method: 'GET',
-      protocol: 'wss:',
+      protocol: 'https:',  // IoT verifica la firma in canonical form HTTPS, non WSS
       hostname: AWS_IOT.endpoint,
       path: '/mqtt',
       headers: { host: AWS_IOT.endpoint },
@@ -39,7 +39,7 @@ async function buildSignedUrl() {
 
   const params = Object.entries(signed.query)
     .flatMap(([k, v]) => (Array.isArray(v) ? v.map(vi => [k, vi]) : [[k, v]]))
-    .map(([k, v]) => `${encodeURIComponent(k)}=${encodeURIComponent(v)}`)
+    .map(([k, v]) => `${k}=${encodeURIComponent(v)}`)
     .join('&');
 
   return `wss://${AWS_IOT.endpoint}/mqtt?${params}`;
@@ -49,21 +49,20 @@ export async function mqttConnect() {
   if (client) return;
   reconnectEnabled = true;
 
-  let url;
-  try {
-    url = await buildSignedUrl();
-  } catch (e) {
-    console.error('Cognito/SigV4 fallito:', e);
-    if (onStatusCallback) onStatusCallback('error');
-    return;
-  }
-
-  client = mqtt.connect(url, {
+  client = mqtt.connect(`wss://${AWS_IOT.endpoint}/mqtt`, {
     clientId: `casa_app_${Date.now()}`,
     clean: true,
-    reconnectPeriod: 0,   // gestiamo noi il reconnect per rinnovare l'URL firmato
+    reconnectPeriod: 5000,
     connectTimeout: 10000,
     protocolVersion: 4,
+    transformWsUrl: async () => {
+      try {
+        return await buildSignedUrl();
+      } catch (e) {
+        console.error('SigV4 signing fallito:', e);
+        throw e;
+      }
+    },
   });
 
   client.on('connect', () => {
@@ -81,13 +80,6 @@ export async function mqttConnect() {
 
   client.on('close', () => {
     if (onStatusCallback) onStatusCallback('disconnected');
-    if (reconnectEnabled) {
-      // Nuovo URL firmato ad ogni riconnessione (le credenziali Cognito scadono in ~1h)
-      setTimeout(() => {
-        client = null;
-        mqttConnect();
-      }, 5000);
-    }
   });
 
   client.on('error', (err) => {
