@@ -49,20 +49,21 @@ export async function mqttConnect() {
   if (client) return;
   reconnectEnabled = true;
 
-  client = mqtt.connect(`wss://${AWS_IOT.endpoint}/mqtt`, {
+  let url;
+  try {
+    url = await buildSignedUrl();
+  } catch (e) {
+    console.error('SigV4 signing fallito:', e);
+    if (onStatusCallback) onStatusCallback('error');
+    return;
+  }
+
+  client = mqtt.connect(url, {
     clientId: `casa_app_${Date.now()}`,
     clean: true,
-    reconnectPeriod: 5000,
+    reconnectPeriod: 0,
     connectTimeout: 10000,
     protocolVersion: 4,
-    transformWsUrl: async () => {
-      try {
-        return await buildSignedUrl();
-      } catch (e) {
-        console.error('SigV4 signing fallito:', e);
-        throw e;
-      }
-    },
   });
 
   client.on('connect', () => {
@@ -80,6 +81,10 @@ export async function mqttConnect() {
 
   client.on('close', () => {
     if (onStatusCallback) onStatusCallback('disconnected');
+    if (reconnectEnabled) {
+      client = null;
+      setTimeout(() => mqttConnect(), 5000);
+    }
   });
 
   client.on('error', (err) => {
