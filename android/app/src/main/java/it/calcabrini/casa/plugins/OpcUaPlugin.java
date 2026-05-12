@@ -19,7 +19,7 @@ import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
-@CapacitorPlugin(name = "OpcUa")
+@CapacitorPlugin(name = "OpcUaPlugin")
 public class OpcUaPlugin extends Plugin {
 
     private OpcUaClient client = null;
@@ -67,7 +67,7 @@ public class OpcUaPlugin extends Plugin {
 
     @PluginMethod
     public void readBool(PluginCall call) {
-        String nodeStr = call.getString("node");
+        String nodeStr = call.getString("nodeId");
         if (client == null) { call.reject("Not connected"); return; }
         executor.submit(() -> {
             try {
@@ -83,7 +83,7 @@ public class OpcUaPlugin extends Plugin {
 
     @PluginMethod
     public void readReal(PluginCall call) {
-        String nodeStr = call.getString("node");
+        String nodeStr = call.getString("nodeId");
         if (client == null) { call.reject("Not connected"); return; }
         executor.submit(() -> {
             try {
@@ -101,7 +101,7 @@ public class OpcUaPlugin extends Plugin {
 
     @PluginMethod
     public void writeBool(PluginCall call) {
-        String nodeStr = call.getString("node");
+        String nodeStr = call.getString("nodeId");
         Boolean value = call.getBoolean("value", false);
         if (client == null) { call.reject("Not connected"); return; }
         executor.submit(() -> {
@@ -118,13 +118,30 @@ public class OpcUaPlugin extends Plugin {
 
     @PluginMethod
     public void writeReal(PluginCall call) {
-        String nodeStr = call.getString("node");
+        String nodeStr = call.getString("nodeId");
         Double value = call.getDouble("value", 0.0);
         if (client == null) { call.reject("Not connected"); return; }
         executor.submit(() -> {
             try {
                 NodeId nodeId = new NodeId(NS, nodeStr);
                 DataValue dv = new DataValue(new Variant(value.floatValue()));
+                StatusCode sc = client.writeValue(nodeId, dv).get();
+                JSObject ret = new JSObject();
+                ret.put("ok", sc.isGood());
+                call.resolve(ret);
+            } catch (Exception e) { call.reject(e.getMessage()); }
+        });
+    }
+
+    @PluginMethod
+    public void writeInt(PluginCall call) {
+        String nodeStr = call.getString("nodeId");
+        Integer value = call.getInt("value", 0);
+        if (client == null) { call.reject("Not connected"); return; }
+        executor.submit(() -> {
+            try {
+                NodeId nodeId = new NodeId(NS, nodeStr);
+                DataValue dv = new DataValue(new Variant(value));
                 StatusCode sc = client.writeValue(nodeId, dv).get();
                 JSObject ret = new JSObject();
                 ret.put("ok", sc.isGood());
