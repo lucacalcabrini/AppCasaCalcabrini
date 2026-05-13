@@ -75,6 +75,27 @@ Contiene IP del PLC, endpoint AWS IoT WSS, e le definizioni statiche di `DEVICES
 - IP: `192.168.178.250` | MQTT lib: LMQTT_Client V3.1
 - DB principale: `DbCasa` con `Array[0..15] of UtCasa`
 
+## Stato debug connessione MQTT (aggiornato 2026-05-13)
+
+### Approcci tentati e abbandonati
+- **Cognito Identity Pool + SigV4** (`@aws-sdk/signature-v4`, `@aws-crypto/sha256-browser`): rimosso. Il presigned URL veniva rifiutato da AWS IoT Core nonostante le credenziali Cognito fossero valide (test Python con stesso algoritmo dava CONNESSO). Il problema era probabilmente Vite bundling dei pacchetti AWS SDK.
+- **`crypto.subtle` manuale SigV4**: implementato correttamente ma stesso risultato — connessione rifiutata.
+
+### Approccio attuale: Custom Authorizer
+Connessione tramite `CasaAuthorizer` (Lambda AWS IoT Custom Authorizer):
+- URL: `wss://endpoint/mqtt?x-amz-customauthorizer-name=CasaAuthorizer&token=...`
+- Token in `src/config.js` → `AWS_IOT.authorizerToken`
+- **Token attuale**: `CasaCalcabrini2024Token` (cambiato da `CasaCalcabrini2024SecretToken`)
+- Campo `username` aggiunto a `mqtt.connect()` come secondo vettore per il token (alcuni client strippano i query param prima dell'handshake WS)
+
+### Commit WIP attuale (`2598a5e`)
+Contiene debug logging temporaneo da rimuovere dopo il test:
+- `console.debug('[MQTT] connecting to:', WS_URL)`
+- listener `packetreceive` per tracciare la handshake
+- `console.error('[MQTT] error completo:', err)`
+
+Quando la connessione funziona: rimuovere il commit WIP con `git revert 2598a5e` o pulire manualmente i log e fare un nuovo commit.
+
 ## Regole FONDAMENTALI
 
 - **NON toccare mai**: certificati TLS, endpoint AWS, META-INF fixes Gradle, workflow GitHub Actions
