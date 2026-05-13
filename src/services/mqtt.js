@@ -1,7 +1,5 @@
 import mqtt from 'mqtt';
 import { fromCognitoIdentityPool } from '@aws-sdk/credential-providers';
-import { SignatureV4 } from '@aws-sdk/signature-v4';
-import { Sha256 } from '@aws-crypto/sha256-browser';
 import { AWS_IOT } from '../config';
 import { parsePayload } from './parser';
 
@@ -15,34 +13,74 @@ const credentialsProvider = fromCognitoIdentityPool({
   clientConfig: { region: AWS_IOT.region },
 });
 
-async function buildSignedUrl() {
-  const credentials = await credentialsProvider();
+// SigV4 presigned URL via browser-native crypto.subtle.
+// aws4 (header-based) non è usabile per WebSocket nel browser perché
+// l'API WebSocket non permette headers custom — serve il presigned URL con query string.
 
-  const signer = new SignatureV4({
-    credentials,
-    region: AWS_IOT.region,
-    service: 'iotdevicegateway',
-    sha256: Sha256,
-  });
+async function sha256hex(msg) {
+  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(msg));
+  return [...new Uint8Array(buf)].map(b => b.toString(16).padStart(2, '0')).join('');
+}
 
-  const signed = await signer.presign(
-    {
-      method: 'GET',
-      protocol: 'https:',  // IoT verifica la firma in canonical form HTTPS, non WSS
-      hostname: AWS_IOT.endpoint,
-      path: '/mqtt',
-      headers: { host: AWS_IOT.endpoint },
-      query: {},
-    },
-    { expiresIn: 3600 },
+async function hmac(key, msg) {
+  const k = await crypto.subtle.importKey(
+    'raw',
+    typeof key === 'string' ? new TextEncoder().encode(key) : key,
+    { name: 'HMAC', hash: 'SHA-256' },
+    false,
+    ['sign'],
   );
+  return new Uint8Array(await crypto.subtle.sign('HMAC', k, new TextEncoder().encode(msg)));
+}
 
-  const params = Object.entries(signed.query)
-    .flatMap(([k, v]) => (Array.isArray(v) ? v.map(vi => [k, vi]) : [[k, v]]))
-    .map(([k, v]) => `${k}=${encodeURIComponent(v)}`)
+async function buildSignedUrl() {
+  const { accessKeyId, secretAccessKey, sessionToken } = await credentialsProvider();
+
+  const now = new Date();
+  const datetime = now.toISOString().replace(/[-:]/g, '').replace(/\.\d{3}Z$/, 'Z');
+  const date = datetime.slice(0, 8);
+  const scope = `${date}/${AWS_IOT.region}/iotdevicegateway/aws4_request`;
+
+  // Parametri canonical query string (ordinati alfabeticamente, senza X-Amz-Signature)
+  const queryEntries = [
+    ['X-Amz-Algorithm', 'AWS4-HMAC-SHA256'],
+    ['X-Amz-Credential', `${accessKeyId}/${scope}`],
+    ['X-Amz-Date', datetime],
+    ['X-Amz-Expires', '86400'],
+    ...(sessionToken ? [['X-Amz-Security-Token', sessionToken]] : []),
+    ['X-Amz-SignedHeaders', 'host'],
+  ].sort(([a], [b]) => (a < b ? -1 : 1));
+
+  const canonicalQS = queryEntries
+    .map(([k, v]) => `${encodeURIComponent(k)}=${encodeURIComponent(v)}`)
     .join('&');
 
-  return `wss://${AWS_IOT.endpoint}/mqtt?${params}`;
+  const canonicalRequest = [
+    'GET',
+    '/mqtt',
+    canonicalQS,
+    `host:${AWS_IOT.endpoint}\n`,
+    'host',
+    'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855', // SHA256('')
+  ].join('\n');
+
+  const stringToSign = [
+    'AWS4-HMAC-SHA256',
+    datetime,
+    scope,
+    await sha256hex(canonicalRequest),
+  ].join('\n');
+
+  const kDate    = await hmac('AWS4' + secretAccessKey, date);
+  const kRegion  = await hmac(kDate,    AWS_IOT.region);
+  const kService = await hmac(kRegion,  'iotdevicegateway');
+  const kSigning = await hmac(kService, 'aws4_request');
+  const sigBytes = await hmac(kSigning, stringToSign);
+  const signature = [...sigBytes].map(b => b.toString(16).padStart(2, '0')).join('');
+
+  const url = `wss://${AWS_IOT.endpoint}/mqtt?${canonicalQS}&X-Amz-Signature=${signature}`;
+  console.debug('[MQTT] URL firmato:', url);
+  return url;
 }
 
 export async function mqttConnect() {
@@ -53,7 +91,7 @@ export async function mqttConnect() {
   try {
     url = await buildSignedUrl();
   } catch (e) {
-    console.error('SigV4 signing fallito:', e);
+    console.error('[MQTT] buildSignedUrl fallito:', e);
     if (onStatusCallback) onStatusCallback('error');
     return;
   }
@@ -67,7 +105,7 @@ export async function mqttConnect() {
   });
 
   client.on('connect', () => {
-    console.log('MQTT connesso ad AWS IoT Core');
+    console.log('[MQTT] connesso ad AWS IoT Core');
     if (onStatusCallback) onStatusCallback('connected');
     client.subscribe(AWS_IOT.topicStato, { qos: 0 });
   });
@@ -79,7 +117,11 @@ export async function mqttConnect() {
     }
   });
 
-  client.on('close', () => {
+  client.on('close', (...args) => {
+    const wsEvent = args[0];
+    console.warn('[MQTT] close — code:', wsEvent?.code ?? 'n/d',
+      '| reason:', wsEvent?.reason ?? 'n/d',
+      '| wasClean:', wsEvent?.wasClean ?? 'n/d');
     if (onStatusCallback) onStatusCallback('disconnected');
     if (reconnectEnabled) {
       client = null;
@@ -88,14 +130,14 @@ export async function mqttConnect() {
   });
 
   client.on('error', (err) => {
-    console.error('MQTT errore:', err);
+    console.error('[MQTT] error — message:', err?.message, '| code:', err?.code, '| full:', err);
     if (onStatusCallback) onStatusCallback('error');
   });
 }
 
 export function mqttSendCommand(cmd) {
   if (!client || !client.connected) {
-    console.warn('MQTT non connesso, comando ignorato:', cmd);
+    console.warn('[MQTT] non connesso, comando ignorato:', cmd);
     return;
   }
   client.publish(AWS_IOT.topicCmd, cmd, { qos: 1 });
