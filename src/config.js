@@ -6,7 +6,7 @@ export const AWS_IOT = {
   region: 'eu-west-1',
   endpoint: 'a3fmnf8o7o8knx-ats.iot.eu-west-1.amazonaws.com',
   authorizerName: 'CasaAuthorizer',
-  authorizerToken: 'CasaCalcabrini2024SecretToken',
+  authorizerToken: 'CasaCalcabrini2024Token',
   topicStato: 'casa/stato',
   topicCmd: 'casa/cmd',
 };
