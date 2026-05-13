@@ -85,7 +85,7 @@ Contiene IP del PLC, endpoint AWS IoT WSS, e le definizioni statiche di `DEVICES
 Connessione tramite `CasaAuthorizer` (Lambda AWS IoT Custom Authorizer):
 - URL: `wss://endpoint/mqtt?x-amz-customauthorizer-name=CasaAuthorizer&token=...`
 - Token in `src/config.js` → `AWS_IOT.authorizerToken`
-- **Token attuale**: `CasaCalcabrini2024Token` (cambiato da `CasaCalcabrini2024SecretToken`)
+- **Token attuale**: `CasaCalcabrini2024SecretToken`
 - Campo `username` aggiunto a `mqtt.connect()` come secondo vettore per il token (alcuni client strippano i query param prima dell'handshake WS)
 
 ### Commit WIP attuale (`2598a5e`)
