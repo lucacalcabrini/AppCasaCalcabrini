@@ -3,9 +3,10 @@ export const PLC_OPCUA_PORT = 4840;
 export const PING_TIMEOUT_MS = 500;
 
 export const AWS_IOT = {
-  identityPoolId: 'eu-west-1:391d6b9e-6b9e-4b29-b455-daf56deb392d',
   region: 'eu-west-1',
   endpoint: 'a3fmnf8o7o8knx-ats.iot.eu-west-1.amazonaws.com',
+  authorizerName: 'CasaAuthorizer',
+  authorizerToken: 'CasaCalcabrini2024SecretToken',
   topicStato: 'casa/stato',
   topicCmd: 'casa/cmd',
 };
