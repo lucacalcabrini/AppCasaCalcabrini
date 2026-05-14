@@ -16,24 +16,21 @@ export function mqttConnect() {
   if (client) return;
   reconnectEnabled = true;
 
-  console.debug('[MQTT] connecting to:', WS_URL);
   client = mqtt.connect(WS_URL, {
     clientId: `casa_app_${Date.now()}`,
     clean: true,
     reconnectPeriod: 0,
     connectTimeout: 10000,
     protocolVersion: 4,
-    username: `?x-amz-customauthorizer-name=${AWS_IOT.authorizerName}&token=${AWS_IOT.authorizerToken}`,
+    wsOptions: {
+      protocols: ['mqtt'],
+    },
   });
 
   client.on('connect', () => {
     console.log('[MQTT] connesso ad AWS IoT Core');
     if (onStatusCallback) onStatusCallback('connected');
     client.subscribe(AWS_IOT.topicStato, { qos: 0 });
-  });
-
-  client.on('packetreceive', (packet) => {
-    if (packet.cmd) console.debug('[MQTT] packet ricevuto:', packet.cmd, JSON.stringify(packet));
   });
 
   client.on('message', (topic, message) => {
@@ -44,9 +41,6 @@ export function mqttConnect() {
   });
 
   client.on('close', (...args) => {
-    const wsEvent = args[0];
-    console.warn('[MQTT] close — code:', wsEvent?.code ?? 'n/d',
-      '| reason:', wsEvent?.reason ?? 'n/d');
     if (onStatusCallback) onStatusCallback('disconnected');
     if (reconnectEnabled) {
       client = null;
@@ -55,16 +49,12 @@ export function mqttConnect() {
   });
 
   client.on('error', (err) => {
-    console.error('[MQTT] error completo:', err);
     if (onStatusCallback) onStatusCallback('error');
   });
 }
 
 export function mqttSendCommand(cmd) {
-  if (!client || !client.connected) {
-    console.warn('[MQTT] non connesso, comando ignorato:', cmd);
-    return;
-  }
+  if (!client || !client.connected) return;
   client.publish(AWS_IOT.topicCmd, cmd, { qos: 1 });
 }
 

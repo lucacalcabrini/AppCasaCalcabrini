@@ -15,8 +15,7 @@ export default function TabAllarmi({ alarms }) {
 
   return (
     <>
-      {/* Allarmi attivi */}
-      {attivi.length > 0 && (
+      {attivi.length > 0 ? (
         <>
           <div className="section-title" style={{ color: 'var(--accent-red)' }}>
             ⚠️ Allarmi attivi — {attivi.length}
@@ -34,10 +33,7 @@ export default function TabAllarmi({ alarms }) {
             </div>
           ))}
         </>
-      )}
-
-      {/* Tutto ok */}
-      {attivi.length === 0 && (
+      ) : (
         <div className="card" style={{ textAlign: 'center', padding: 32 }}>
           <div style={{ fontSize: 48, marginBottom: 8 }}>✅</div>
           <div style={{ fontSize: 16, fontWeight: 600 }}>Nessun allarme attivo</div>
@@ -47,7 +43,6 @@ export default function TabAllarmi({ alarms }) {
         </div>
       )}
 
-      {/* Allarmi inattivi (lista compatta) */}
       {inattivi.length > 0 && (
         <>
           <div className="section-title">Monitorati</div>

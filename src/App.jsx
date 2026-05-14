@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { connectionStart, connectionStop, onData, onStatus, getMode, sendCommand } from './services/connection';
+import { connectionStart, connectionStop, onData, onStatus, sendCommand, requestFullState } from './services/connection';
 import TabLuci from './components/TabLuci';
 import TabClima from './components/TabClima';
 import TabAllarmi from './components/TabAllarmi';
@@ -25,20 +25,21 @@ export default function App() {
     onStatus((mode, status) => {
       setConnMode(mode);
       setConnStatus(status);
+      if (mode === 'remote' && status === 'connected') {
+        requestFullState();
+      }
     });
     connectionStart();
     return () => { connectionStop(); };
   }, []);
 
   const handleToggle = useCallback(async (idx, currentState) => {
-    // Ottimistic update
     setDevices(prev => prev.map(d =>
       d.idx === idx ? { ...d, acceso: !currentState } : d
     ));
     try {
       await sendCommand(idx, !currentState);
     } catch (e) {
-      // Rollback
       setDevices(prev => prev.map(d =>
         d.idx === idx ? { ...d, acceso: currentState } : d
       ));
@@ -56,7 +57,7 @@ export default function App() {
 
   const statusClass = !connMode ? 'status-offline'
     : connMode === 'local' ? 'status-local'
-    : 'status-remote';
+    : connStatus === 'connected' ? 'status-remote' : 'status-connecting';
 
   const statusLabel = !connMode ? 'Offline'
     : connMode === 'local' ? 'OPC UA'
@@ -64,7 +65,6 @@ export default function App() {
 
   return (
     <>
-      {/* Header */}
       <div className="header">
         <h1>Casa</h1>
         <div className={`header-status ${statusClass}`}>
@@ -73,7 +73,6 @@ export default function App() {
         </div>
       </div>
 
-      {/* Content */}
       <div className="content">
         {tab === 'luci' && (
           <TabLuci
@@ -82,15 +81,10 @@ export default function App() {
             onSpegniTutte={handleSpegniTutte}
           />
         )}
-        {tab === 'clima' && (
-          <TabClima devices={devices} />
-        )}
-        {tab === 'allarmi' && (
-          <TabAllarmi alarms={alarms} />
-        )}
+        {tab === 'clima' && <TabClima devices={devices} />}
+        {tab === 'allarmi' && <TabAllarmi alarms={alarms} />}
       </div>
 
-      {/* Tab Bar */}
       <div className="tab-bar">
         {TABS.map(t => (
           <button

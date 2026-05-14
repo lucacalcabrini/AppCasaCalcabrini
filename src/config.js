@@ -4,7 +4,7 @@ export const PING_TIMEOUT_MS = 500;
 
 export const AWS_IOT = {
   region: 'eu-west-1',
-  endpoint: 'a3fmnf8o7o8knx-ats.iot.eu-west-1.amazonaws.com',
+  endpoint: 'd0213360tkzu6jyvy3ua-ats.iot.eu-west-1.amazonaws.com',
   authorizerName: 'CasaAuthorizer',
   authorizerToken: 'CasaCalcabrini2024SecretToken',
   topicStato: 'casa/stato',
