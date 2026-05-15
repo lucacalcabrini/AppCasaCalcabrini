@@ -1,8 +1,18 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { connectionStart, connectionStop, onData, onStatus, getMode, sendCommand } from './services/connection';
+import { DEVICES, ALARMS } from './config';
 import TabLuci from './components/TabLuci';
 import TabClima from './components/TabClima';
 import TabAllarmi from './components/TabAllarmi';
+
+// Stato iniziale: tutti i device OFF/inattivi — si aggiorna con il primo messaggio MQTT
+const defaultDevices = DEVICES
+  .map((def, idx) => def ? { idx, ...def, acceso: false, temp: null } : null)
+  .filter(Boolean);
+
+const defaultAlarms = ALARMS
+  .map((def, idx) => def ? { idx, ...def, attivo: false, nuovo: false, alta: def.alta, code: '0' } : null)
+  .filter(Boolean);
 
 const TABS = [
   { key: 'luci',    label: 'Luci',    icon: '💡' },
@@ -12,8 +22,8 @@ const TABS = [
 
 export default function App() {
   const [tab, setTab] = useState('luci');
-  const [devices, setDevices] = useState([]);
-  const [alarms, setAlarms] = useState([]);
+  const [devices, setDevices] = useState(defaultDevices);
+  const [alarms, setAlarms] = useState(defaultAlarms);
   const [connMode, setConnMode] = useState(null);
   const [connStatus, setConnStatus] = useState('connecting');
 
