@@ -33,7 +33,11 @@ export async function connectionStart() {
 function startRemote() {
   if (statusCallback) statusCallback('remote', 'connecting');
   onMqttData((data) => { if (dataCallback) dataCallback(data); });
-  onMqttStatus((s) => { if (statusCallback) statusCallback('remote', s); });
+  onMqttStatus((s) => {
+    if (statusCallback) statusCallback('remote', s);
+    // Appena connesso chiede al PLC lo stato completo
+    if (s === 'connected') mqttSendCommand(buildStatoRequest());
+  });
   mqttConnect();
 }
 
