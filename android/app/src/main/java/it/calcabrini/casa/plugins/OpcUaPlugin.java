@@ -24,8 +24,7 @@ public class OpcUaPlugin extends Plugin {
 
     private OpcUaClient client = null;
     private final ExecutorService executor = Executors.newSingleThreadExecutor();
-    // Namespace index 3 = Siemens S7-1200/1500 default
-    private static final int NS = 3;
+    // NodeId strings arrive as "ns=3;s=..." — parsed via NodeId.parse()
 
     @PluginMethod
     public void connect(PluginCall call) {
@@ -71,7 +70,7 @@ public class OpcUaPlugin extends Plugin {
         if (client == null) { call.reject("Not connected"); return; }
         executor.submit(() -> {
             try {
-                NodeId nodeId = new NodeId(NS, nodeStr);
+                NodeId nodeId = NodeId.parse(nodeStr);
                 DataValue val = client.readValue(0, null, nodeId).get();
                 Boolean v = (Boolean) val.getValue().getValue();
                 JSObject ret = new JSObject();
@@ -87,7 +86,7 @@ public class OpcUaPlugin extends Plugin {
         if (client == null) { call.reject("Not connected"); return; }
         executor.submit(() -> {
             try {
-                NodeId nodeId = new NodeId(NS, nodeStr);
+                NodeId nodeId = NodeId.parse(nodeStr);
                 DataValue val = client.readValue(0, null, nodeId).get();
                 Object v = val.getValue().getValue();
                 double d = v instanceof Float ? ((Float)v).doubleValue()
@@ -106,7 +105,7 @@ public class OpcUaPlugin extends Plugin {
         if (client == null) { call.reject("Not connected"); return; }
         executor.submit(() -> {
             try {
-                NodeId nodeId = new NodeId(NS, nodeStr);
+                NodeId nodeId = NodeId.parse(nodeStr);
                 DataValue dv = new DataValue(new Variant(value));
                 StatusCode sc = client.writeValue(nodeId, dv).get();
                 JSObject ret = new JSObject();
@@ -123,7 +122,7 @@ public class OpcUaPlugin extends Plugin {
         if (client == null) { call.reject("Not connected"); return; }
         executor.submit(() -> {
             try {
-                NodeId nodeId = new NodeId(NS, nodeStr);
+                NodeId nodeId = NodeId.parse(nodeStr);
                 DataValue dv = new DataValue(new Variant(value.floatValue()));
                 StatusCode sc = client.writeValue(nodeId, dv).get();
                 JSObject ret = new JSObject();
@@ -140,7 +139,7 @@ public class OpcUaPlugin extends Plugin {
         if (client == null) { call.reject("Not connected"); return; }
         executor.submit(() -> {
             try {
-                NodeId nodeId = new NodeId(NS, nodeStr);
+                NodeId nodeId = NodeId.parse(nodeStr);
                 DataValue dv = new DataValue(new Variant(value));
                 StatusCode sc = client.writeValue(nodeId, dv).get();
                 JSObject ret = new JSObject();

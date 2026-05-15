@@ -31,7 +31,7 @@ Il fallback è automatico: se `opcuaConnect` lancia eccezione, `startRemote()` v
 
 Plugin Capacitor custom registrato in `MainActivity.java` via `registerPlugin(OpcUaPlugin.class)`. Annotato `@CapacitorPlugin(name = "OpcUaPlugin")` — questo nome deve corrispondere a `Capacitor.Plugins.OpcUaPlugin` in `opcua.js`.
 
-Tutti i metodi read/write accettano il parametro `nodeId` (stringa). Metodi disponibili: `connect`, `disconnect`, `readBool`, `readReal`, `writeBool`, `writeReal`, `writeInt`.
+Tutti i metodi read/write accettano il parametro `nodeId` (stringa formato completo `ns=3;s=...`). Il Java usa `NodeId.parse(nodeStr)` per interpretarlo. Metodi disponibili: `connect`, `disconnect`, `readBool`, `readReal`, `writeBool`, `writeReal`, `writeInt`.
 
 Dipendenze Gradle: Eclipse Milo 0.6.12, Netty 4.1.86, BouncyCastle 1.78.1. Il `packaging.resources.excludes` in `app/build.gradle` è necessario per risolvere duplicati META-INF da Milo.
 
