@@ -42,11 +42,10 @@ jobs:
           grep -E "versionCode|versionName" android/app/build.gradle
 
       - name: Restore debug keystore (per signing stabile)
-        if: ${{ secrets.DEBUG_KEYSTORE_B64 != '' }}
         run: |
           mkdir -p ~/.android
           echo "${{ secrets.DEBUG_KEYSTORE_B64 }}" | base64 -d > ~/.android/debug.keystore
-          echo "Debug keystore ripristinato da secret"
+          echo "Debug keystore ripristinato"
 
       - run: npm install
       - name: Build frontend (Vite)
