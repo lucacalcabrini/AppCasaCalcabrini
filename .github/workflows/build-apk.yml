@@ -49,7 +49,10 @@ jobs:
           echo "Debug keystore ripristinato da secret"
 
       - run: npm install
-      - run: npm run build
+      - name: Build frontend (Vite)
+        run: npm run build
+        env:
+          VITE_AWS_IOT_TOKEN: ${{ secrets.AWS_IOT_TOKEN }}
       - run: npx cap sync android
 
       - name: Build APK

@@ -1,4 +1,15 @@
-﻿node_modules/
+node_modules/
 dist/
 .DS_Store
 *.log
+
+# Secret locali — MAI committare
+.env.local
+.env
+
+# Tool AI locali
+.claude/
+AGENTS.md
+
+# Generato da npm install — non usato in CI
+package-lock.json

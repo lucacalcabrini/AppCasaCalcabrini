@@ -5,18 +5,15 @@ export const PING_TIMEOUT_MS = 500;
 export const GITHUB = {
   owner: 'lucacalcabrini',
   repo: 'AppCasaCalcabrini',
-  // Personal Access Token (fine-grained) con permesso "Contents: read"
-  // sul repo. Necessario perché il repo è privato.
-  // Genera su: https://github.com/settings/personal-access-tokens/new
-  // Se lasciato vuoto e il repo è privato, l'updater non funziona.
-  token: '',
+  // Repo pubblico: nessun token necessario per l'auto-updater
 };
 
 export const AWS_IOT = {
   region: 'eu-west-1',
   endpoint: 'd0213360tkzu6jyvy3ua-ats.iot.eu-west-1.amazonaws.com',
   authorizerName: 'CasaAuthorizer',
-  authorizerToken: 'CasaCalcabrini2024SecretToken',
+  // Token letto da variabile d'ambiente (file .env.local, gitignored)
+  authorizerToken: import.meta.env.VITE_AWS_IOT_TOKEN || '',
   topicStato: 'casa/stato',
   topicCmd: 'casa/cmd',
 };
