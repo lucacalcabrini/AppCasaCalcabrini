@@ -36,6 +36,8 @@ body {
   overflow-x: hidden;
   min-height: 100vh;
   padding-bottom: 80px;
+  /* Spazio per la status bar Android (edge-to-edge Android 15+) */
+  padding-top: env(safe-area-inset-top, 0px);
 }
 
 /* ── Header ── */
