@@ -2,6 +2,16 @@
 export const PLC_OPCUA_PORT = 4840;
 export const PING_TIMEOUT_MS = 500;
 
+export const GITHUB = {
+  owner: 'lucacalcabrini',
+  repo: 'AppCasaCalcabrini',
+  // Personal Access Token (fine-grained) con permesso "Contents: read"
+  // sul repo. Necessario perché il repo è privato.
+  // Genera su: https://github.com/settings/personal-access-tokens/new
+  // Se lasciato vuoto e il repo è privato, l'updater non funziona.
+  token: '',
+};
+
 export const AWS_IOT = {
   region: 'eu-west-1',
   endpoint: 'd0213360tkzu6jyvy3ua-ats.iot.eu-west-1.amazonaws.com',

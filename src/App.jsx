@@ -4,6 +4,7 @@ import { DEVICES, ALARMS } from './config';
 import TabLuci from './components/TabLuci';
 import TabClima from './components/TabClima';
 import TabAllarmi from './components/TabAllarmi';
+import UpdateBanner from './components/UpdateBanner';
 
 // Stato iniziale: tutti i device OFF/inattivi — si aggiorna con il primo messaggio MQTT
 const defaultDevices = DEVICES
@@ -75,6 +76,7 @@ export default function App() {
 
   return (
     <>
+      <UpdateBanner />
       <div className="header">
         <h1>Casa</h1>
         <div className={`header-status ${statusClass}`}>

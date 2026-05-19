@@ -13,7 +13,30 @@ npx cap sync android # copia dist/ in android/app/src/main/assets/public/
 cd android && ./gradlew assembleDebug
 ```
 
-Non ci sono test automatizzati. La CI si attiva ad ogni push su `main` e produce l'APK come artifact GitHub Actions.
+Non ci sono test automatizzati. La CI si attiva ad ogni push su `main`, produce l'APK come artifact GitHub Actions e crea una **GitHub Release** con tag `v<package.json.version>.<run_number>` (es. `v2.0.42`) e l'APK come asset.
+
+## Auto-update
+
+L'app controlla all'avvio se c'è una versione più recente su GitHub Releases. Se sì mostra un banner con bottone "Aggiorna" che scarica l'APK e lancia l'installer Android.
+
+**Componenti:**
+- `.github/workflows/build-apk.yml` — inietta `versionName`/`versionCode` in `build.gradle` da `package.json.version + run_number`, crea Release con APK
+- `android/.../plugins/AppUpdaterPlugin.java` — plugin Capacitor: `getVersion()`, `downloadAndInstall({url, authToken})`
+- `src/services/updater.js` — `checkForUpdate()` fetcha `releases/latest` da GitHub API, confronta tag con versione installata
+- `src/components/UpdateBanner.jsx` — banner UI mostrato solo se update disponibile
+- `src/config.js` → `GITHUB.token` — Personal Access Token fine-grained con scope `Contents: read` (necessario perché il repo è privato)
+
+**Setup iniziale richiesto:**
+1. **Token GitHub**: generare PAT fine-grained su https://github.com/settings/personal-access-tokens/new (scope `Contents: read` sul solo repo `AppCasaCalcabrini`) e incollarlo in `src/config.js` → `GITHUB.token`
+2. **Debug keystore stabile** (CRITICO): senza questo, ogni APK CI è firmato con keystore diverso → Android rifiuta l'install sopra una versione precedente. Generare una volta:
+   ```
+   keytool -genkey -v -keystore debug.keystore -storepass android \
+     -alias androiddebugkey -keypass android -keyalg RSA -keysize 2048 \
+     -validity 10000 -dname "CN=Android Debug,O=Android,C=US"
+   base64 -w 0 debug.keystore  # output base64
+   ```
+   Aggiungere come GitHub Secret `DEBUG_KEYSTORE_B64`. Il workflow lo decodifica in `~/.android/debug.keystore` prima del build.
+3. **Permessi Android**: `REQUEST_INSTALL_PACKAGES` già nel manifest. La prima volta l'utente deve consentire "Install unknown apps" alla nostra app dalle impostazioni.
 
 ## Architettura
 
