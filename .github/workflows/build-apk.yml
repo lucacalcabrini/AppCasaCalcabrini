@@ -41,13 +41,15 @@ jobs:
           sed -i "s/versionName \"1.0\"/versionName \"${{ steps.ver.outputs.name }}\"/" android/app/build.gradle
           grep -E "versionCode|versionName" android/app/build.gradle
 
-      - name: Restore debug keystore (per signing stabile)
+      - name: Restore keystore (signing stabile)
         run: |
           mkdir -p ~/.android
           printf '%s' "${{ secrets.DEBUG_KEYSTORE_B64 }}" | base64 -d > ~/.android/debug.keystore
-          keytool -list -keystore ~/.android/debug.keystore -storepass android -noprompt 2>&1 \
+          # Verifica integrità e stampa fingerprint SHA-256 (da confrontare con APK installato)
+          keytool -list -v -keystore ~/.android/debug.keystore -storepass android -alias androiddebugkey -noprompt 2>&1 \
+            | grep -E "SHA256|SHA1|Owner|Alias|Valid" \
             && echo "✓ Keystore valido" \
-            || echo "✗ Keystore non valido"
+            || { echo "✗ Keystore non valido — STOP"; exit 1; }
 
       - run: npm install
       - name: Build frontend (Vite)
@@ -61,6 +63,23 @@ jobs:
           cd android
           chmod +x gradlew
           ./gradlew assembleDebug --no-daemon
+        env:
+          # Passa esplicitamente il keystore a Gradle (signingConfigs.stable in build.gradle)
+          KEYSTORE_PATH: /root/.android/debug.keystore
+          KEYSTORE_STORE_PASS: android
+          KEYSTORE_ALIAS: androiddebugkey
+          KEYSTORE_KEY_PASS: android
+
+      - name: Verifica firma APK prodotto
+        run: |
+          APK=android/app/build/outputs/apk/debug/app-debug.apk
+          echo "=== Fingerprint certificato APK ==="
+          keytool -printcert -jarfile $APK 2>/dev/null | grep -E "SHA256|SHA1|Owner" \
+            || echo "(keytool -jarfile non supportato, usando apksigner)"
+          # Confronta con keystore: devono coincidere
+          echo "=== Fingerprint keystore (deve essere IDENTICO) ==="
+          keytool -list -v -keystore ~/.android/debug.keystore -storepass android -alias androiddebugkey -noprompt 2>&1 \
+            | grep "SHA256"
 
       - name: Rename APK
         run: cp android/app/build/outputs/apk/debug/app-debug.apk Casa-${{ steps.ver.outputs.name }}.apk

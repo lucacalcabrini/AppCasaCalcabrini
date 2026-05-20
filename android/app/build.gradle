@@ -16,8 +16,23 @@ android {
             ignoreAssetsPattern = '!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~'
         }
     }
+    signingConfigs {
+        // Firma stabile: usa il keystore da variabile d'ambiente (CI) o il debug.keystore locale.
+        // Se KEYSTORE_PATH è impostato ma il file non esiste → build FALLISCE (mai silenzioso).
+        stable {
+            def ksPath = System.getenv("KEYSTORE_PATH") ?: "${System.getProperty('user.home')}/.android/debug.keystore"
+            storeFile file(ksPath)
+            storePassword System.getenv("KEYSTORE_STORE_PASS") ?: "android"
+            keyAlias System.getenv("KEYSTORE_ALIAS") ?: "androiddebugkey"
+            keyPassword System.getenv("KEYSTORE_KEY_PASS") ?: "android"
+        }
+    }
     buildTypes {
+        debug {
+            signingConfig signingConfigs.stable
+        }
         release {
+            signingConfig signingConfigs.stable
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
         }
