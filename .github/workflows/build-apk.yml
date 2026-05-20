@@ -43,12 +43,14 @@ jobs:
 
       - name: Restore keystore (signing stabile)
         run: |
-          mkdir -p ~/.android
-          printf '%s' "${{ secrets.DEBUG_KEYSTORE_B64 }}" | base64 -d > ~/.android/debug.keystore
-          # Verifica integrità e stampa fingerprint SHA-256 (da confrontare con APK installato)
-          keytool -list -v -keystore ~/.android/debug.keystore -storepass android -alias androiddebugkey -noprompt 2>&1 \
+          mkdir -p "$HOME/.android"
+          printf '%s' "${{ secrets.DEBUG_KEYSTORE_B64 }}" | base64 -d > "$HOME/.android/debug.keystore"
+          # Esporta il path reale come variabile d'ambiente per i passi successivi
+          echo "KEYSTORE_PATH=$HOME/.android/debug.keystore" >> $GITHUB_ENV
+          # Verifica integrità e stampa fingerprint SHA-256
+          keytool -list -v -keystore "$HOME/.android/debug.keystore" -storepass android -alias androiddebugkey -noprompt 2>&1 \
             | grep -E "SHA256|SHA1|Owner|Alias|Valid" \
-            && echo "✓ Keystore valido" \
+            && echo "✓ Keystore valido — path: $HOME/.android/debug.keystore" \
             || { echo "✗ Keystore non valido — STOP"; exit 1; }
 
       - run: npm install
@@ -64,8 +66,7 @@ jobs:
           chmod +x gradlew
           ./gradlew assembleDebug --no-daemon
         env:
-          # Passa esplicitamente il keystore a Gradle (signingConfigs.stable in build.gradle)
-          KEYSTORE_PATH: /root/.android/debug.keystore
+          # KEYSTORE_PATH viene dal passo "Restore keystore" via $GITHUB_ENV → path reale del runner
           KEYSTORE_STORE_PASS: android
           KEYSTORE_ALIAS: androiddebugkey
           KEYSTORE_KEY_PASS: android
