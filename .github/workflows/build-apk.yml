@@ -74,12 +74,11 @@ jobs:
       - name: Verifica firma APK prodotto
         run: |
           APK=android/app/build/outputs/apk/debug/app-debug.apk
-          echo "=== Fingerprint certificato APK ==="
-          keytool -printcert -jarfile $APK 2>/dev/null | grep -E "SHA256|SHA1|Owner" \
-            || echo "(keytool -jarfile non supportato, usando apksigner)"
-          # Confronta con keystore: devono coincidere
+          APKSIGNER=$(find "$ANDROID_SDK_ROOT/build-tools" -name "apksigner" | sort -V | tail -1)
+          echo "=== Fingerprint certificato APK (apksigner) ==="
+          $APKSIGNER verify --print-certs "$APK" | grep -E "Signer|SHA-256|SHA-1"
           echo "=== Fingerprint keystore (deve essere IDENTICO) ==="
-          keytool -list -v -keystore ~/.android/debug.keystore -storepass android -alias androiddebugkey -noprompt 2>&1 \
+          keytool -list -v -keystore "$KEYSTORE_PATH" -storepass android -alias androiddebugkey -noprompt 2>&1 \
             | grep "SHA256"
 
       - name: Rename APK
