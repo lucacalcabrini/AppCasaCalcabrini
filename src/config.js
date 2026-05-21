@@ -1,6 +1,16 @@
 ﻿export const PLC_IP = '192.168.178.250';
-export const PLC_OPCUA_PORT = 4840;
 export const PING_TIMEOUT_MS = 500;
+
+// Comunicazione S7 GET/PUT (percorso LOCAL).
+// Legge/scrive direttamente DbCasa (DB6) — nessuna DB ausiliaria necessaria.
+// PREREQUISITO TIA: DbCasa → Proprietà → "Accesso ottimizzato al blocco" = OFF
+//   poi Compila + Scarica. Nessun'altra modifica al PLC richiesta.
+export const S7 = {
+  host: PLC_IP,
+  rack: 0,
+  slot: 1,
+  db: 6,   // DbCasa — accesso ottimizzato DEVE essere disabilitato
+};
 
 export const GITHUB = {
   owner: 'lucacalcabrini',

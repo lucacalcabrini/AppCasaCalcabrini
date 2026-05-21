@@ -37,26 +37,6 @@ android {
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
         }
     }
-    packaging {
-        resources {
-            excludes += [
-                'META-INF/INDEX.LIST',
-                'META-INF/io.netty.versions.properties',
-                'META-INF/DEPENDENCIES',
-                'META-INF/*.kotlin_module',
-                'META-INF/LICENSE.md',
-                'META-INF/NOTICE.md',
-                'META-INF/LICENSE',
-                'META-INF/NOTICE',
-                'META-INF/LICENSE.txt',
-                'META-INF/NOTICE.txt',
-                'META-INF/LGPL2.1',
-                'META-INF/AL2.0',
-                'META-INF/ASL2.0',
-            ]
-            pickFirsts += ['org/bouncycastle/**']
-        }
-    }
 }
 
 repositories {
@@ -88,12 +68,7 @@ try {
     logger.info("google-services.json not found, google-services plugin not applied. Push Notifications won't work")
 }
 
-// OPC UA - Eclipse Milo
+// Comunicazione S7 GET/PUT - s7connector (puro-Java, no JNI)
 dependencies {
-    implementation 'org.eclipse.milo:sdk-client:0.6.12'
-    implementation 'org.eclipse.milo:stack-client:0.6.12'
-    implementation 'io.netty:netty-all:4.1.86.Final'
-    implementation 'org.bouncycastle:bcprov-jdk18on:1.78.1'
-    implementation 'com.google.guava:guava:31.1-android'
-    implementation 'org.slf4j:slf4j-android:1.7.36'
+    implementation 'com.github.s7connector:s7connector:2.1'
 }

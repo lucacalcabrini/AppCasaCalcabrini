@@ -1,12 +1,15 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { connectionStart, connectionStop, onData, onStatus, sendCommand, requestFullState } from './services/connection';
+import {
+  connectionStart, connectionStop,
+  onData, onStatus, sendCommand, requestFullState,
+  setForcedMode, getForcedMode,
+} from './services/connection';
 import { DEVICES, ALARMS } from './config';
 import TabLuci from './components/TabLuci';
 import TabClima from './components/TabClima';
 import TabAllarmi from './components/TabAllarmi';
 import UpdateBanner from './components/UpdateBanner';
 
-// Stato iniziale: tutti i device OFF/inattivi — si aggiorna con il primo messaggio MQTT
 const defaultDevices = DEVICES
   .map((def, idx) => def ? { idx, ...def, acceso: false, temp: null } : null)
   .filter(Boolean);
@@ -21,12 +24,18 @@ const TABS = [
   { key: 'allarmi', label: 'Allarmi', icon: '🔔' },
 ];
 
+// Ciclo dei modi: auto → in casa → remoto → auto
+const MODE_CYCLE  = [null, 'local', 'remote'];
+const MODE_ICON   = { null: '🔄', local: '🏠', remote: '☁️' };
+const MODE_LABEL  = { null: 'Auto', local: 'In Casa', remote: 'Remoto' };
+
 export default function App() {
   const [tab, setTab] = useState('luci');
   const [devices, setDevices] = useState(defaultDevices);
   const [alarms, setAlarms] = useState(defaultAlarms);
   const [connMode, setConnMode] = useState(null);
   const [connStatus, setConnStatus] = useState('connecting');
+  const [forcedMode, setForcedModeState] = useState(getForcedMode());
 
   useEffect(() => {
     onData((data) => {
@@ -42,6 +51,20 @@ export default function App() {
     });
     connectionStart();
     return () => { connectionStop(); };
+  }, []);
+
+  // Cambia modalità e riavvia la connessione
+  const handleModeSwitch = useCallback(async () => {
+    const idx = MODE_CYCLE.indexOf(getForcedMode());
+    const next = MODE_CYCLE[(idx + 1) % MODE_CYCLE.length];
+    setForcedMode(next);
+    setForcedModeState(next);
+    await connectionStop();
+    setDevices(defaultDevices);
+    setAlarms(defaultAlarms);
+    setConnMode(null);
+    setConnStatus('connecting');
+    connectionStart();
   }, []);
 
   const handleToggle = useCallback(async (idx, currentState) => {
@@ -67,21 +90,32 @@ export default function App() {
   const allarmiAttivi = alarms.filter(a => a.attivo).length;
 
   const statusClass = !connMode ? 'status-offline'
-    : connMode === 'local' ? 'status-local'
-    : connStatus === 'connected' ? 'status-remote' : 'status-connecting';
+    : connMode === 'local'
+      ? (connStatus === 'error' ? 'status-offline' : 'status-local')
+      : connStatus === 'connected' ? 'status-remote' : 'status-connecting';
 
   const statusLabel = !connMode ? 'Offline'
-    : connMode === 'local' ? 'OPC UA'
-    : connStatus === 'connected' ? 'AWS IoT' : 'Connessione...';
+    : connMode === 'local'
+      ? (connStatus === 'error' ? 'S7 Errore' : 'S7 GET/PUT')
+      : connStatus === 'connected' ? 'AWS IoT' : 'Connessione...';
 
   return (
     <>
       <UpdateBanner />
       <div className="header">
         <h1>Casa</h1>
-        <div className={`header-status ${statusClass}`}>
-          <span className="status-dot" />
-          {statusLabel}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <button
+            className="mode-btn"
+            onClick={handleModeSwitch}
+            title={`Modalità: ${MODE_LABEL[forcedMode]} — tocca per cambiare`}
+          >
+            {MODE_ICON[forcedMode]} {MODE_LABEL[forcedMode]}
+          </button>
+          <div className={`header-status ${statusClass}`}>
+            <span className="status-dot" />
+            {statusLabel}
+          </div>
         </div>
       </div>
 

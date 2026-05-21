@@ -1,6 +1,6 @@
-﻿import { PLC_IP, PING_TIMEOUT_MS } from '../config';
+import { PLC_IP, PING_TIMEOUT_MS } from '../config';
 import { mqttConnect, mqttSendCommand, mqttDisconnect, onMqttData, onMqttStatus } from './mqtt';
-import { opcuaInit, opcuaConnect, opcuaReadAll, opcuaSendCommand, opcuaDisconnect } from './opcua';
+import { s7Init, s7Connect, s7ReadAll, s7SendCommand, s7Disconnect } from './s7';
 import { buildCommand, buildStatoRequest } from './parser';
 
 let mode = null;
@@ -8,21 +8,35 @@ let dataCallback = null;
 let statusCallback = null;
 let pollTimer = null;
 
+// null = auto-detect via ping
+// 'local'  = forza S7 GET/PUT (anche se PLC non raggiungibile — mostra errore)
+// 'remote' = forza MQTT/AWS IoT
+let forcedMode = null;
+
+export function setForcedMode(m) { forcedMode = m; }
+export function getForcedMode() { return forcedMode; }
+
 export async function connectionStart() {
-  const local = await isPlcReachable();
+  const local = forcedMode === 'local' || (forcedMode !== 'remote' && await isPlcReachable());
 
   if (local) {
     mode = 'local';
     if (statusCallback) statusCallback('local', 'connecting');
     try {
-      opcuaInit();
-      await opcuaConnect();
+      s7Init();
+      await s7Connect();
       if (statusCallback) statusCallback('local', 'connected');
       startLocalPolling();
     } catch (e) {
-      console.warn('OPC UA fallito, passo a remoto:', e);
-      mode = 'remote';
-      startRemote();
+      if (forcedMode === 'local') {
+        // modalità forzata → non fare fallback a MQTT, mostra errore
+        console.error('S7 GET/PUT non disponibile:', e);
+        if (statusCallback) statusCallback('local', 'error');
+      } else {
+        console.warn('S7 GET/PUT fallito, passo a remoto:', e);
+        mode = 'remote';
+        startRemote();
+      }
     }
   } else {
     mode = 'remote';
@@ -42,10 +56,11 @@ function startRemote() {
 function startLocalPolling() {
   const poll = async () => {
     try {
-      const data = await opcuaReadAll();
+      const data = await s7ReadAll();
       if (dataCallback) dataCallback(data);
     } catch (e) {
-      console.error('OPC UA lettura fallita:', e);
+      console.error('S7 lettura fallita:', e);
+      if (statusCallback) statusCallback('local', 'error');
     }
   };
   poll();
@@ -54,7 +69,7 @@ function startLocalPolling() {
 
 export async function sendCommand(idx, on) {
   if (mode === 'local') {
-    await opcuaSendCommand(idx, on);
+    await s7SendCommand(idx, on);
   } else {
     mqttSendCommand(buildCommand(idx, on));
   }
@@ -68,7 +83,7 @@ export function requestFullState() {
 
 export async function connectionStop() {
   if (pollTimer) { clearInterval(pollTimer); pollTimer = null; }
-  if (mode === 'local') await opcuaDisconnect();
+  if (mode === 'local') await s7Disconnect();
   if (mode === 'remote') mqttDisconnect();
   mode = null;
 }

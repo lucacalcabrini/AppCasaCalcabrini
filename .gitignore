@@ -11,5 +11,12 @@ dist/
 .claude/
 AGENTS.md
 
+# Documentazione PLC (sorgenti TIA) — SOLO locale, repo pubblico → mai committare
+docs/plc/
+
 # Generato da npm install — non usato in CI
 package-lock.json
+
+# Python cache
+__pycache__/
+*.pyc
