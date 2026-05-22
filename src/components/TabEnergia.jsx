@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { opcuaReadEnergia } from '../services/opcua';
+import { s7ReadEnergia } from '../services/s7clima';
 
 const POLL_INTERVAL = 10000;
 
@@ -64,7 +64,7 @@ export default function TabEnergia({ connMode }) {
 
   const poll = useCallback(async () => {
     try {
-      const d = await opcuaReadEnergia();
+      const d = await s7ReadEnergia();
       if (d) { setEnergia(d); setError(false); }
       else setError(true);
     } catch (e) {

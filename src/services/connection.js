@@ -1,6 +1,7 @@
 import { PLC_IP, PING_TIMEOUT_MS } from '../config';
 import { mqttConnect, mqttSendCommand, mqttDisconnect, onMqttData, onMqttStatus } from './mqtt';
 import { s7Init, s7Connect, s7ReadAll, s7SendCommand, s7Disconnect } from './s7';
+import { s7ClimaInit } from './s7clima';
 import { buildCommand, buildStatoRequest } from './parser';
 
 let mode = null;
@@ -24,6 +25,7 @@ export async function connectionStart() {
     if (statusCallback) statusCallback('local', 'connecting');
     try {
       s7Init();
+      s7ClimaInit();
       await s7Connect();
       if (statusCallback) statusCallback('local', 'connected');
       startLocalPolling();

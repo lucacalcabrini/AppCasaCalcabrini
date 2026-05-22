@@ -1,12 +1,12 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { ZONE_RISCALDAMENTO } from '../config';
 import {
-  opcuaReadClimaAll,
-  opcuaWriteSetpoint,
-  opcuaSetAutoManuale,
-  opcuaReadEstateInverno,
-  opcuaWriteEstateInverno,
-} from '../services/opcua';
+  s7ReadClimaAll,
+  s7WriteSetpoint,
+  s7WriteManAuto,
+  s7ReadEstateInverno,
+  s7WriteEstateInverno,
+} from '../services/s7clima';
 
 const POLL_INTERVAL = 5000;
 
@@ -20,9 +20,9 @@ export default function TabClima({ devices, connMode }) {
   /* ── Polling LOCAL ──────────────────────────────────────────────────── */
   const pollClima = useCallback(async () => {
     try {
-      const data = await opcuaReadClimaAll();
+      const data = await s7ReadClimaAll(ZONE_RISCALDAMENTO);
       setZonaData(data);
-      const ei = await opcuaReadEstateInverno();
+      const ei = await s7ReadEstateInverno();
       setEI(ei);
     } catch (e) {
       console.warn('[Clima] poll error:', e.message);
@@ -36,7 +36,7 @@ export default function TabClima({ devices, connMode }) {
     return () => clearInterval(t);
   }, [isLocal, pollClima]);
 
-  /* ── Helper: temp da devices (disponibile sempre, MQTT + OPC UA) ───── */
+  /* ── Helper: temp da devices (disponibile sempre, S7 + MQTT) ───────── */
   const getTempDevice = (deviceId) => {
     const d = devices.find(x => x.id === deviceId);
     return d?.temp ?? null;
@@ -50,7 +50,7 @@ export default function TabClima({ devices, connMode }) {
     setLoadingZone(p => ({ ...p, [zona.id]: true }));
     setZonaData(p => ({ ...p, [zona.id]: { ...(p[zona.id] || {}), setpoint: next } }));
     try {
-      await opcuaWriteSetpoint(zona.zone, next);
+      await s7WriteSetpoint(zona.id, next);
     } catch (e) {
       setZonaData(p => ({ ...p, [zona.id]: { ...(p[zona.id] || {}), setpoint: current } }));
     } finally {
@@ -62,15 +62,15 @@ export default function TabClima({ devices, connMode }) {
   const handleAutoMan = async (zona) => {
     const isMan = zonaData[zona.id]?.manuale ?? false;
     try {
-      await opcuaSetAutoManuale(zona.zone, !isMan);
+      await s7WriteManAuto(zona.id, !isMan);
       setZonaData(p => ({ ...p, [zona.id]: { ...(p[zona.id] || {}), manuale: !isMan } }));
     } catch (e) {}
   };
 
   /* ── Stagione ───────────────────────────────────────────────────────── */
-  const handleStagione = async (estate) => {
-    setEI(estate);
-    try { await opcuaWriteEstateInverno(estate); } catch (e) { setEI(!estate); }
+  const handleStagione = async (value) => {
+    setEI(value);
+    try { await s7WriteEstateInverno(value); } catch (e) { setEI(!value); }
   };
 
   /* ── Media temperature disponibili ──────────────────────────────────── */
@@ -111,8 +111,7 @@ export default function TabClima({ devices, connMode }) {
         const temp    = getTempDevice(zona.deviceId);
         const data    = zonaData[zona.id] || {};
         const setpt   = data.setpoint;
-        const valvola = data.valvolaOut;
-        const riscalda = valvola !== undefined ? valvola > 5 : null;
+        const riscalda = isLocal ? (data.riscalda ?? null) : null;
         const isMan   = data.manuale ?? false;
         const loading = loadingZone[zona.id];
 
@@ -136,23 +135,10 @@ export default function TabClima({ devices, connMode }) {
               </div>
             </div>
 
-            {/* Barra valvola (solo LOCAL) */}
-            {isLocal && valvola !== undefined && (
-              <div className="valvola-row">
-                <div className="valvola-bar">
-                  <div
-                    className="valvola-fill"
-                    style={{ width: `${Math.min(100, Math.max(0, valvola))}%` }}
-                  />
-                </div>
-                <span className="valvola-pct">{Math.round(valvola)}%</span>
-              </div>
-            )}
-
             {/* Controllo setpoint (solo LOCAL) */}
             {isLocal ? (
               <div className="zona-controls">
-                <div className="zona-autoман">
+                <div className="zona-automan">
                   <button
                     className={`mode-btn ${!isMan ? 'active' : ''}`}
                     onClick={() => isMan && handleAutoMan(zona)}

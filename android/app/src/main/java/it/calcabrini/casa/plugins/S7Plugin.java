@@ -100,4 +100,46 @@ public class S7Plugin extends Plugin {
             } catch (Exception e) { call.reject(e.getMessage()); }
         });
     }
+
+    /** Scrive un Real (Float 32 bit, big-endian S7) nella DB `db` all'offset `offset`. */
+    @PluginMethod
+    public void writeFloat(PluginCall call) {
+        if (connector == null) { call.reject("Not connected"); return; }
+        int db = call.getInt("db", 0);
+        int offset = call.getInt("offset", 0);
+        double value = call.getDouble("value", 0.0);
+        executor.submit(() -> {
+            try {
+                int bits = Float.floatToIntBits((float) value);
+                byte[] buf = new byte[] {
+                    (byte) ((bits >> 24) & 0xFF),
+                    (byte) ((bits >> 16) & 0xFF),
+                    (byte) ((bits >>  8) & 0xFF),
+                    (byte) ( bits        & 0xFF)
+                };
+                connector.write(DaveArea.DB, db, offset, buf);
+                JSObject ret = new JSObject();
+                ret.put("ok", true);
+                call.resolve(ret);
+            } catch (Exception e) { call.reject(e.getMessage()); }
+        });
+    }
+
+    /** Scrive 1 byte nella DB `db` all'offset `offset`. Usato per Bool (bit manipulation in JS). */
+    @PluginMethod
+    public void writeByte(PluginCall call) {
+        if (connector == null) { call.reject("Not connected"); return; }
+        int db = call.getInt("db", 0);
+        int offset = call.getInt("offset", 0);
+        int value = call.getInt("value", 0);
+        executor.submit(() -> {
+            try {
+                byte[] buf = new byte[] { (byte) (value & 0xFF) };
+                connector.write(DaveArea.DB, db, offset, buf);
+                JSObject ret = new JSObject();
+                ret.put("ok", true);
+                call.resolve(ret);
+            } catch (Exception e) { call.reject(e.getMessage()); }
+        });
+    }
 }
