@@ -21,7 +21,13 @@ export const S7_DB = {
 
 export const GITHUB = {
   owner: 'lucacalcabrini',
-  repo: 'AppCasaCalcabrini',
+  repo:  'AppCasaCalcabrini',
+  // PAT fine-grained, scope Contents:read — necessario per repo privata
+  // Generare su https://github.com/settings/personal-access-tokens/new
+  token: import.meta.env.VITE_GITHUB_TOKEN || '',
+  get releasesUrl() {
+    return `https://github.com/${this.owner}/${this.repo}/releases/latest`;
+  },
 };
 
 export const AWS_IOT = {

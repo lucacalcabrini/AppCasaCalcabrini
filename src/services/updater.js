@@ -3,26 +3,36 @@ import { GITHUB } from '../config';
 
 const AppUpdater = Capacitor.Plugins?.AppUpdater;
 
-const RELEASES_URL =
+const API_URL =
   `https://api.github.com/repos/${GITHUB.owner}/${GITHUB.repo}/releases/latest`;
 
+function authHeaders() {
+  const h = { 'Accept': 'application/vnd.github+json' };
+  if (GITHUB.token) h['Authorization'] = `Bearer ${GITHUB.token}`;
+  return h;
+}
+
 /**
- * Confronta versione installata con l'ultima release su GitHub.
- * Ritorna { current, latest, url, notes } se c'è un update, altrimenti null.
- * Su browser ritorna sempre null (nessuna versione "installata").
- * Repo pubblico: nessun token necessario.
+ * Controlla se esiste una versione più recente su GitHub Releases.
+ *
+ * Ritorna:
+ *   { tokenExpired: true }              — token scaduto / non autorizzato (401/403)
+ *   { current, latest, url, notes }     — update disponibile
+ *   null                                — già aggiornato, errore rete, o non nativo
  */
 export async function checkForUpdate() {
-  if (!Capacitor.isNativePlatform() || !AppUpdater) {
-    return null;
-  }
+  if (!Capacitor.isNativePlatform() || !AppUpdater) return null;
 
   try {
     const { version: current } = await AppUpdater.getVersion();
 
-    const res = await fetch(RELEASES_URL, {
-      headers: { 'Accept': 'application/vnd.github+json' },
-    });
+    const res = await fetch(API_URL, { headers: authHeaders() });
+
+    if (res.status === 401 || res.status === 403) {
+      console.warn('[Updater] Token GitHub scaduto o non autorizzato (HTTP', res.status, ')');
+      return { tokenExpired: true };
+    }
+
     if (!res.ok) {
       console.warn('[Updater] GitHub API HTTP', res.status);
       return null;
@@ -52,9 +62,9 @@ export async function checkForUpdate() {
 
 /**
  * Scarica l'APK e lancia l'installer Android.
- * L'utente vedrà il prompt di sistema per confermare l'installazione.
+ * Passa il token per repo private (AppUpdaterPlugin aggiunge l'header Authorization).
  */
 export async function installUpdate(url) {
   if (!Capacitor.isNativePlatform() || !AppUpdater) return;
-  return AppUpdater.downloadAndInstall({ url, authToken: '' });
+  return AppUpdater.downloadAndInstall({ url, authToken: GITHUB.token || '' });
 }

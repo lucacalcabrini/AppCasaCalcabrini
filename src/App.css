@@ -259,6 +259,14 @@ body {
   border-bottom: 1px solid var(--accent-primary);
   position: sticky; top: 0; z-index: 200;
 }
+.update-banner--warn {
+  background: linear-gradient(135deg, #78350f, #1c1917);
+  border-bottom-color: #f59e0b;
+}
+.btn-update--warn {
+  background: #f59e0b;
+  color: #1c1917;
+}
 .update-banner-text {
   display: flex; flex-direction: column; gap: 2px;
   font-size: 13px; color: var(--text-primary);
