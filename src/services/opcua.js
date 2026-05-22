@@ -74,9 +74,9 @@ export async function opcuaSendCommand(idx, on) {
 
 // ── Clima — lettura zone riscaldamento ───────────────────────────────────────
 
-export async function opcuaReadClimaZona(db) {
+export async function opcuaReadClimaZona(zone) {
   if (!OpcUaPlugin) throw new Error('OPC UA non disponibile');
-  const nodes = getRiscaldamentoNodes(db);
+  const nodes = getRiscaldamentoNodes(zone);
   try {
     const [tempAttuale, setpoint, valvolaOut, manuale, on, disabilitata] = await Promise.all([
       readReal(nodes.tempAttuale),
@@ -88,7 +88,7 @@ export async function opcuaReadClimaZona(db) {
     ]);
     return { tempAttuale, setpoint, valvolaOut, manuale, on, disabilitata };
   } catch (e) {
-    console.warn(`[OPC] Lettura clima ${db} fallita:`, e.message);
+    console.warn(`[OPC] Lettura clima ${zone} fallita:`, e.message);
     return null;
   }
 }
@@ -97,22 +97,21 @@ export async function opcuaReadClimaAll() {
   if (!OpcUaPlugin) throw new Error('OPC UA non disponibile');
   const result = {};
   for (const zona of ZONE_RISCALDAMENTO) {
-    result[zona.id] = await opcuaReadClimaZona(zona.db);
+    result[zona.id] = await opcuaReadClimaZona(zona.zone); // usa .zone (verificato da HMITags)
   }
   return result;
 }
 
-export async function opcuaWriteSetpoint(db, value) {
+export async function opcuaWriteSetpoint(zone, value) {
   if (!OpcUaPlugin) throw new Error('OPC UA non disponibile');
-  const nodes = getRiscaldamentoNodes(db);
+  const nodes = getRiscaldamentoNodes(zone);
   await writeReal(nodes.setpointMan, value);
-  // Attiva modalità manuale se non già attiva
-  await writeBool(nodes.manuale, true);
+  await writeBool(nodes.manuale, true); // attiva modalità manuale
 }
 
-export async function opcuaSetAutoManuale(db, manuale) {
+export async function opcuaSetAutoManuale(zone, manuale) {
   if (!OpcUaPlugin) throw new Error('OPC UA non disponibile');
-  const nodes = getRiscaldamentoNodes(db);
+  const nodes = getRiscaldamentoNodes(zone);
   await writeBool(nodes.manuale, manuale);
 }
 
@@ -135,6 +134,8 @@ export async function opcuaReadImpianti() {
       caldaiaPellet_On, caldaiaPellet_Man, caldaiaPellet_Temp, caldaiaPellet_Out,
       caldaiaGas_On, caldaiaGas_Man,
       pompaAlta_On, pompaAlta_Man,
+      pompaBassa_On, pompaBassa_Man,
+      pompaGas_On, pompaGas_Man,
       pompaPozzo_STS, pompaPozzo_Scatto, pompaPozzo_Disable, pompaPozzo_EnbOra, pompaPozzo_Bypass,
     ] = await Promise.all([
       readBool(OPC_NODES.caldaiaPellet_On),
@@ -145,7 +146,11 @@ export async function opcuaReadImpianti() {
       readBool(OPC_NODES.caldaiaGas_Man),
       readBool(OPC_NODES.pompaAlta_On),
       readBool(OPC_NODES.pompaAlta_Man),
-      readBool(OPC_NODES.pompaPozzo_STS),
+      readBool(OPC_NODES.pompaBassa_On),
+      readBool(OPC_NODES.pompaBassa_Man),
+      readBool(OPC_NODES.pompaGas_On),
+      readBool(OPC_NODES.pompaGas_Man),
+      readReal(OPC_NODES.pompaPozzo_STS).catch(() => 0), // Int su PLC, leggo come Real
       readBool(OPC_NODES.pompaPozzo_Scatto),
       readBool(OPC_NODES.pompaPozzo_Disable),
       readBool(OPC_NODES.pompaPozzo_EnbOra),
@@ -155,7 +160,9 @@ export async function opcuaReadImpianti() {
       caldaiaPellet: { on: caldaiaPellet_On, manuale: caldaiaPellet_Man, temp: caldaiaPellet_Temp, out: caldaiaPellet_Out },
       caldaiaGas:    { on: caldaiaGas_On, manuale: caldaiaGas_Man },
       pompaAlta:     { on: pompaAlta_On, manuale: pompaAlta_Man },
-      pompaPozzo:    { inMarcia: pompaPozzo_STS, scattoTermico: pompaPozzo_Scatto, disabilitata: pompaPozzo_Disable, enbOrario: pompaPozzo_EnbOra, bypass: pompaPozzo_Bypass },
+      pompaBassa:    { on: pompaBassa_On, manuale: pompaBassa_Man },
+      pompaGas:      { on: pompaGas_On, manuale: pompaGas_Man },
+      pompaPozzo:    { inMarcia: pompaPozzo_STS > 0, scattoTermico: pompaPozzo_Scatto, disabilitata: pompaPozzo_Disable, enbOrario: pompaPozzo_EnbOra, bypass: pompaPozzo_Bypass },
     };
   } catch (e) {
     console.warn('[OPC] Lettura impianti fallita:', e.message);

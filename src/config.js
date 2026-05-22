@@ -48,24 +48,26 @@ export const DEVICES = [
 ];
 
 // ── Zone Riscaldamento (LOCAL / OPC UA only) ──────────────────────────────
-// db: nome del DB istanza in TIA Portal (da verificare online)
+// zone: nome del sotto-oggetto in DbRiscaldamento (verificato su HMITags.xlsx)
 // deviceId: collega alla temperatura già disponibile via MQTT/OPC UA in DbCasa
 export const ZONE_RISCALDAMENTO = [
-  { id: 'camera',      nome: 'Camera',      icona: '🛏️', db: 'DbRiscaldamento_Camera',      deviceId: 'luce_camera'       },
-  { id: 'cameretta',   nome: 'Cameretta',   icona: '🛏️', db: 'DbRiscaldamento_Cameretta',   deviceId: 'luce_cameretta'    },
-  { id: 'salone',      nome: 'Salone',      icona: '🛋️', db: 'DbRiscaldamento_Salone',      deviceId: 'luce_sala'         },
-  { id: 'cucina',      nome: 'Cucina',      icona: '🍳',  db: 'DbRiscaldamento_Cucina',      deviceId: 'luce_cucina'       },
-  { id: 'studio',      nome: 'Studio',      icona: '💼',  db: 'DbRiscaldamento_Studio',      deviceId: 'luce_studio'       },
-  { id: 'corridoio',   nome: 'Corridoio',   icona: '🚪',  db: 'DbRiscaldamento_Corridoio',   deviceId: 'luce_corridoio'    },
-  { id: 'ingresso',    nome: 'Ingresso',    icona: '🏠',  db: 'DbRiscaldamento_Ingresso',    deviceId: 'luce_ingresso'     },
-  { id: 'bagno_bianco',nome: 'Bagno Bianco',icona: '🚿',  db: 'DbRiscaldamento_BagnoBianco', deviceId: 'luce_bagno_bianco' },
-  { id: 'bagno_blu',   nome: 'Bagno Blu',   icona: '🛁',  db: 'DbRiscaldamento_BagnoBlu',    deviceId: 'luce_bagno_blu'    },
-  { id: 'cantina',     nome: 'Cantina',     icona: '🔒',  db: 'DbRiscaldamento_Cantina',     deviceId: 'luce_cantina'      },
+  { id: 'camera',      nome: 'Camera',      icona: '🛏️', zone: 'Camera',      deviceId: 'luce_camera'       },
+  { id: 'cameretta',   nome: 'Cameretta',   icona: '🛏️', zone: 'Cameretta',   deviceId: 'luce_cameretta'    },
+  { id: 'salone',      nome: 'Salone',      icona: '🛋️', zone: 'Salone',      deviceId: 'luce_sala'         },
+  { id: 'cucina',      nome: 'Cucina',      icona: '🍳',  zone: 'Cucina',      deviceId: 'luce_cucina'       },
+  { id: 'studio',      nome: 'Studio',      icona: '💼',  zone: 'Studio',      deviceId: 'luce_studio'       },
+  { id: 'corridoio',   nome: 'Corridoio',   icona: '🚪',  zone: 'Corridoio',   deviceId: 'luce_corridoio'    },
+  { id: 'ingresso',    nome: 'Ingresso',    icona: '🏠',  zone: 'Ingresso',    deviceId: 'luce_ingresso'     },
+  { id: 'bagno_bianco',nome: 'Bagno Bianco',icona: '🚿',  zone: 'BagnoBianco', deviceId: 'luce_bagno_bianco' },
+  { id: 'bagno_blu',   nome: 'Bagno Blu',   icona: '🛁',  zone: 'BagnoBlu',    deviceId: 'luce_bagno_blu'    },
+  { id: 'cantina',     nome: 'Cantina',     icona: '🔒',  zone: 'Cantina',     deviceId: 'luce_cantina'      },
 ];
 
-// Genera i nodi OPC UA per una zona riscaldamento dato il nome DB
-export function getRiscaldamentoNodes(db) {
-  const b = `ns=3;s="${db}".DatiHMI`;
+// STRUTTURA CONFERMATA da HMITags.xlsx:
+// Un unico DB "DbRiscaldamento" con sotto-struttura zone/caldaie/pompe.
+// PLC tag reale: DbRiscaldamento.Camera.DatiHMI  → ns=3;s="DbRiscaldamento".Camera.DatiHMI
+export function getRiscaldamentoNodes(zone) {
+  const b = `ns=3;s="DbRiscaldamento".${zone}.DatiHMI`;
   return {
     tempAttuale:  `${b}.Status.ActTemp`,
     setpoint:     `${b}.Status.ActSetpoint`,
@@ -77,46 +79,67 @@ export function getRiscaldamentoNodes(db) {
   };
 }
 
-// Nodi OPC UA per impianti e energia (da verificare su TIA Portal online)
+// Nodi OPC UA — TUTTI verificati su HMITags.xlsx esportato da WinCC
+const RDB = 'ns=3;s="DbRiscaldamento"'; // DB unico riscaldamento
+const PZO = 'ns=3;s="POZZO"';           // Connessione PLC pozzo
+const CPU = 'ns=3;s="ContEnergia"';     // Energia CPU (PLC tag senza prefisso DB)
+
 export const OPC_NODES = {
-  // Modalità stagionale globale (false = Inverno, true = Estate)
-  estateInverno:       'ns=3;s="DbRiscaldamento".Setup.EstateInverno',
+  // Modalità stagionale globale — PLC tag: DbRiscaldamento.Setup.EstateInverno
+  estateInverno:        `${RDB}.Setup.EstateInverno`,
+  pelletEnable:         `${RDB}.Setup.PelletEnable`,
+  gasEnable:            `${RDB}.Setup.GasEnable`,
+  tempCollettore:       `${RDB}.TemperaturaCollettore`,
+  pelletNonAvviato:     `${RDB}.PelletNonAvviato`,
 
-  // Caldaia Pellet
-  caldaiaPellet_On:    'ns=3;s="DbRiscaldamento_CaldaiaPellet".DatiHMI.Stato.On',
-  caldaiaPellet_Man:   'ns=3;s="DbRiscaldamento_CaldaiaPellet".DatiHMI.Manuale.ManAuto',
-  caldaiaPellet_ManOn: 'ns=3;s="DbRiscaldamento_CaldaiaPellet".DatiHMI.Local.ManOn',
-  caldaiaPellet_Temp:  'ns=3;s="DbRiscaldamento_CaldaiaPellet".DatiHMI.Status.ActTemp',
-  caldaiaPellet_Out:   'ns=3;s="DbRiscaldamento_CaldaiaPellet".DatiHMI.Status.Out',
+  // Caldaia Pellet — PLC tag: DbRiscaldamento.CaldaiaPellet.DatiHMI
+  caldaiaPellet_On:     `${RDB}.CaldaiaPellet.DatiHMI.Stato.On`,
+  caldaiaPellet_Man:    `${RDB}.CaldaiaPellet.DatiHMI.Manuale.ManAuto`,
+  caldaiaPellet_ManOn:  `${RDB}.CaldaiaPellet.DatiHMI.Local.ManOn`,
+  caldaiaPellet_Temp:   `${RDB}.CaldaiaPellet.DatiHMI.Status.ActTemp`,
+  caldaiaPellet_Out:    `${RDB}.CaldaiaPellet.DatiHMI.Status.Out`,
 
-  // Caldaia Gas
-  caldaiaGas_On:       'ns=3;s="DbRiscaldamento_CaldaiaGas".DatiHMI.Stato.On',
-  caldaiaGas_Man:      'ns=3;s="DbRiscaldamento_CaldaiaGas".DatiHMI.Manuale.ManAuto',
-  caldaiaGas_ManOn:    'ns=3;s="DbRiscaldamento_CaldaiaGas".DatiHMI.Local.ManOn',
+  // Caldaia Gas — PLC tag: DbRiscaldamento.CaldaiaGas.DatiHMI
+  caldaiaGas_On:        `${RDB}.CaldaiaGas.DatiHMI.Stato.On`,
+  caldaiaGas_Man:       `${RDB}.CaldaiaGas.DatiHMI.Manuale.ManAuto`,
+  caldaiaGas_ManOn:     `${RDB}.CaldaiaGas.DatiHMI.Local.ManOn`,
 
-  // Pompa Circolazione (Alta)
-  pompaAlta_On:        'ns=3;s="DbRiscaldamento_PompaAlta".DatiHMI.Stato.On',
-  pompaAlta_Man:       'ns=3;s="DbRiscaldamento_PompaAlta".DatiHMI.Manuale.ManAuto',
-  pompaAlta_ManOn:     'ns=3;s="DbRiscaldamento_PompaAlta".DatiHMI.Local.ManOn',
+  // Pompa Alta Temp — PLC tag: DbRiscaldamento.PompaAlta.DatiHMI
+  pompaAlta_On:         `${RDB}.PompaAlta.DatiHMI.Stato.On`,
+  pompaAlta_Man:        `${RDB}.PompaAlta.DatiHMI.Manuale.ManAuto`,
+  pompaAlta_ManOn:      `${RDB}.PompaAlta.DatiHMI.Local.ManOn`,
 
-  // Pompa Pozzo (DB separato "POZZO" — stessa CPU o PLC satellite)
-  pompaPozzo_STS:      'ns=3;s="POZZO".GestionePompa.STS_Pompa',
-  pompaPozzo_Req:      'ns=3;s="POZZO".ReqStartPompa',
-  pompaPozzo_Scatto:   'ns=3;s="POZZO".ScattoTermicoPompa',
-  pompaPozzo_Disable:  'ns=3;s="POZZO".GestionePompa.DisableDaHMI',
-  pompaPozzo_EnbOra:   'ns=3;s="POZZO".GestionePompa.Enb.orario',
-  pompaPozzo_Reset:    'ns=3;s="POZZO".GestionePompa.ResetEV',
-  pompaPozzo_Bypass:   'ns=3;s="POZZO".GestionePompa.Bypass.Orario',
+  // Pompa Bassa Temp — PLC tag: DbRiscaldamento.PompaBassa.DatiHMI
+  pompaBassa_On:        `${RDB}.PompaBassa.DatiHMI.Stato.On`,
+  pompaBassa_Man:       `${RDB}.PompaBassa.DatiHMI.Manuale.ManAuto`,
+  pompaBassa_ManOn:     `${RDB}.PompaBassa.DatiHMI.Local.ManOn`,
 
-  // Energia Casa
-  energiaCasa_Kw:      'ns=3;s="CPU".ContEnergia.Actual_Kw',
-  energiaCasa_KwhDay:  'ns=3;s="CPU".ContEnergia.Kwh_Giorno',
-  energiaCasa_KwhHour: 'ns=3;s="CPU".ContEnergia.Kwh_Ora',
-  energiaMedia:        'ns=3;s="CPU".Media_100_Value.out',
+  // Pompa Gas — PLC tag: DbRiscaldamento.PompaGas.DatiHMI
+  pompaGas_On:          `${RDB}.PompaGas.DatiHMI.Stato.On`,
+  pompaGas_Man:         `${RDB}.PompaGas.DatiHMI.Manuale.ManAuto`,
+  pompaGas_ManOn:       `${RDB}.PompaGas.DatiHMI.Local.ManOn`,
+
+  // Pompa Pozzo — PLC tag reale su connessione POZZO (Int per STS!)
+  pompaPozzo_STS:       `${PZO}.GestionePompa.STS_Pompa`,    // Int: 0=ferma, >0=in marcia
+  pompaPozzo_Pompa:     `${PZO}.PompaPozzo`,                  // Bool: stato uscita
+  pompaPozzo_Req:       `${PZO}.ReqStartPompa`,               // Bool
+  pompaPozzo_Scatto:    `${PZO}.ScattoTermicoPompa`,          // Bool
+  pompaPozzo_Disable:   `${PZO}.GestionePompa.DisableDaHMI`,  // Bool
+  pompaPozzo_EnbOra:    `${PZO}.GestionePompa.Enb.orario`,    // Bool
+  pompaPozzo_EnbAssorb: `${PZO}.GestionePompa.Enb.assorbimento`, // Bool
+  pompaPozzo_Reset:     `${PZO}.GestionePompa.ResetEV`,       // Bool (impulso)
+  pompaPozzo_Bypass:    `${PZO}.GestionePompa.Bypass.Orario`, // Bool
+
+  // Energia Casa — PLC tag: ContEnergia.Actual_Kw (senza DB prefix)
+  energiaCasa_Kw:       'ns=3;s="ContEnergia".Actual_Kw',
+  energiaCasa_KwhDay:   'ns=3;s="ContEnergia".Kwh_Giorno',
+  energiaCasa_KwhHour:  'ns=3;s="ContEnergia".Kwh_Ora',
+  energiaMedia:         'ns=3;s="Media_100_Value".out',
 
   // Energia Pozzo
-  energiaPozzo_Kw:     'ns=3;s="POZZO".ContEnergia.Actual_Kw',
-  energiaPozzo_KwhDay: 'ns=3;s="POZZO".ContEnergia.Kwh_Giorno',
+  energiaPozzo_Kw:      `${PZO}.ContEnergia.Actual_Kw`,
+  energiaPozzo_KwhDay:  `${PZO}.ContEnergia.Kwh_Giorno`,
+  energiaPozzo_KwhHour: `${PZO}.ContEnergia.Kwh_Ora`,
 };
 
 export const ALARMS = [

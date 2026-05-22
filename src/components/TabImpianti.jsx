@@ -138,7 +138,7 @@ export default function TabImpianti({ connMode }) {
     );
   }
 
-  const { caldaiaPellet, caldaiaGas, pompaAlta, pompaPozzo } = data;
+  const { caldaiaPellet, caldaiaGas, pompaAlta, pompaBassa, pompaGas, pompaPozzo } = data;
 
   return (
     <>
@@ -164,13 +164,31 @@ export default function TabImpianti({ connMode }) {
         onManOff={() => setManOn('caldaiaGas', OPC_NODES.caldaiaGas_ManOn, false)}
       />
 
-      {/* ── Pompa Circolazione ── */}
+      {/* ── Pompa Alta Temp ── */}
       <ImpiantoCard
-        icona="🔄" nome="Pompa Circolazione"
+        icona="🔄" nome="Pompa Circ. Alta Temp"
         on={pompaAlta.on}
         manuale={pompaAlta.manuale}
         onManOn={() => setManOn('pompaAlta', OPC_NODES.pompaAlta_ManOn, true)}
         onManOff={() => setManOn('pompaAlta', OPC_NODES.pompaAlta_ManOn, false)}
+      />
+
+      {/* ── Pompa Bassa Temp ── */}
+      <ImpiantoCard
+        icona="🔄" nome="Pompa Circ. Bassa Temp"
+        on={pompaBassa.on}
+        manuale={pompaBassa.manuale}
+        onManOn={() => setManOn('pompaBassa', OPC_NODES.pompaBassa_ManOn, true)}
+        onManOff={() => setManOn('pompaBassa', OPC_NODES.pompaBassa_ManOn, false)}
+      />
+
+      {/* ── Pompa Gas ── */}
+      <ImpiantoCard
+        icona="🔄" nome="Pompa Gas"
+        on={pompaGas.on}
+        manuale={pompaGas.manuale}
+        onManOn={() => setManOn('pompaGas', OPC_NODES.pompaGas_ManOn, true)}
+        onManOff={() => setManOn('pompaGas', OPC_NODES.pompaGas_ManOn, false)}
       />
 
       <div className="section-title" style={{ marginTop: 24 }}>Pompa Pozzo</div>

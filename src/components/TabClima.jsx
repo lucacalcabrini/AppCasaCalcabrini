@@ -50,7 +50,7 @@ export default function TabClima({ devices, connMode }) {
     setLoadingZone(p => ({ ...p, [zona.id]: true }));
     setZonaData(p => ({ ...p, [zona.id]: { ...(p[zona.id] || {}), setpoint: next } }));
     try {
-      await opcuaWriteSetpoint(zona.db, next);
+      await opcuaWriteSetpoint(zona.zone, next);
     } catch (e) {
       setZonaData(p => ({ ...p, [zona.id]: { ...(p[zona.id] || {}), setpoint: current } }));
     } finally {
@@ -62,7 +62,7 @@ export default function TabClima({ devices, connMode }) {
   const handleAutoMan = async (zona) => {
     const isMan = zonaData[zona.id]?.manuale ?? false;
     try {
-      await opcuaSetAutoManuale(zona.db, !isMan);
+      await opcuaSetAutoManuale(zona.zone, !isMan);
       setZonaData(p => ({ ...p, [zona.id]: { ...(p[zona.id] || {}), manuale: !isMan } }));
     } catch (e) {}
   };
