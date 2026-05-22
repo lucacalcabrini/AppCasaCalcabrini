@@ -27,93 +27,87 @@ File di riferimento per Claude. Aggiornare ogni volta che arrivano nuovi dati TI
 
 ## DB1 — DbRiscaldamento ✅ (implementato in s7clima.js)
 
-**Accesso ottimizzato**: da verificare → impostare OFF  
-**Struttura**: Setup (0) + 10 zone TempStanze + CaldaiaPellet + CaldaiaGas + Pompe
+**Accesso ottimizzato**: OFF  
+**Tipo**: **InstanceDB** (10033 byte totali) — offset assoluti verificati da tia_db_dump.xml  
+**Batch read app**: `start=5544, size=1856` (copre Setup + Zone + Impianti)
 
-### Setup (offset 0)
+### Setup (offset assoluto 5544)
 
-| Variabile | Offset | Tipo | Note |
+| Variabile | Offset assoluto | Tipo | Note |
 |---|---|---|---|
-| `EstateInverno` | 0.0 | Bool bit 0 | 0=Estate, 1=Inverno |
-| `GasEnable` | 0.1 | Bool bit 1 | |
-| `PelletEnable` | 0.2 | Bool bit 2 | |
-| `PelletPriority` | 0.3 | Bool bit 3 | 0=Gas prio, 1=Pellet prio |
+| `EstateInverno` | 5544.0 | Bool bit 0 | 0=Estate, 1=Inverno |
+| `GasEnable` | 5544.1 | Bool bit 1 | |
+| `PelletEnable` | 5544.2 | Bool bit 2 | |
+| `PelletPriority` | 5544.3 | Bool bit 3 | 0=Gas prio, 1=Pellet prio |
+| `TemperaturaCollettore` | 5592 | Real Float32 BE | °C collettore |
+| `PelletNonAvviato` | 5596.0 | Bool bit 0 | |
 
-### Zone TempStanze — stride 208 byte
+### Zone TempStanze (DatiHMI) — stride **162 byte**
 
 | Zona | Base assoluta DB1 |
 |---|---|
-| Camera | 10 |
-| Cameretta | 218 |
-| Ingresso | 426 |
-| Studio | 634 |
-| Corridoio | 842 |
-| Cantina | 1050 |
-| Salone | 1258 |
-| Cucina | 1466 |
-| BagnoBlu | 1674 |
-| BagnoBianco | 1882 |
+| Camera | 5610 |
+| Cameretta | 5772 |
+| Ingresso | 5934 |
+| Studio | 6096 |
+| Corridoio | 6258 |
+| Cantina | 6420 |
+| Salone | 6582 |
+| Cucina | 6744 |
+| BagnoBlu | 6906 |
+| BagnoBianco | 7068 |
 
-**Offset relativi a zone_base** (tutti assoluti = zone_base + rel):
+**Offset relativi a zona_base** (offset assoluto = zona_base + rel):
 
 | Campo | Rel | Tipo | Note |
 |---|---|---|---|
-| `DatiHMI.Enable` | +18 | Bool bit 0 | 0=zona disabilitata |
-| `DatiHMI.Manuale.ManAuto` | +20 | Bool bit 0 | **0=Manuale, 1=Auto** |
-| `DatiHMI.Manuale.SetpointMAN` | +22 | Real Float32 BE | °C, setpoint da scrivere |
-| `DatiHMI.Status.ActTemp` | +134 | Real Float32 BE | °C corrente |
-| `DatiHMI.Status.ActSetpoint` | +138 | Real Float32 BE | setpoint attivo calcolato |
-| `DatiHMI.Status.Out` | +144 | Bool bit 0 | **1=richiede calore** (on/off, non %) |
+| `DatiHMI.Enable` | +0 | Bool bit 0 | 0=zona disabilitata |
+| `DatiHMI.Manuale.ManAuto` | +2 | Bool bit 0 | **0=Manuale, 1=Auto** |
+| `DatiHMI.Manuale.SetpointMAN` | +4 | Real Float32 BE | °C, setpoint da scrivere |
+| `DatiHMI.Status.ActSetpoint` | +120 | Real Float32 BE | setpoint attivo calcolato dal PLC |
+| `DatiHMI.Status.Out` | +126 | Bool bit 0 | **1=richiede calore** (on/off, non %) |
 
 > `Out` è un **Bool**, NON una percentuale. L'interfaccia mostra ON/OFF, non barra.
 
-### CaldaiaPellet (base 2090)
+### CaldaiaPellet (DatiHMI.Stato base 7230)
 
 | Campo | Offset assoluto | Tipo | Note |
 |---|---|---|---|
-| `DatiHMI.Stato.On` | 2094 | Bool bit 1 | |
-| `DatiHMI.Stato.Allarme` | 2094 | Bool bit 3 | |
-| `DatiHMI.Stato.Disabilitata` | 2094 | Bool bit 5 | |
-| `DatiHMI.StatoInt` | 2096 | Int16 BE | 100=avv, 120=ON, 140=speg, 160=allrm, 180=attesa, 200=dis |
-| `DatiHMI.Local.AutoLocal` | 2110 | Bool bit 0 | 0=auto, 1=local (gestito da FB) |
-| `DatiHMI.Local.ManOn` | 2110 | Bool bit 1 | write: set/clear bit 1 |
+| `DatiHMI.Stato.On` | 7230.1 | Bool bit 1 | |
+| `DatiHMI.Stato.Allarme` | 7230.3 | Bool bit 3 | |
+| `DatiHMI.Stato.Disabilitata` | 7230.5 | Bool bit 5 | |
+| `DatiHMI.StatoInt` | 7232 | Int16 BE | 100=avv, 120=ON, 140=speg, 160=allrm, 180=attesa, 200=dis |
+| `DatiHMI.Local.ManOn` | 7246.1 | Bool bit 1 | write: set/clear bit 1 |
 
-### CaldaiaGas (base 2174)
-
-| Campo | Offset assoluto | Tipo | Note |
-|---|---|---|---|
-| `DatiHMI.Stato.On` | 2178 | Bool bit 1 | |
-| `DatiHMI.Stato.Disabilitata` | 2178 | Bool bit 5 | |
-| `DatiHMI.StatoInt` | 2180 | Int16 BE | stessi codici caldaia |
-| `DatiHMI.Local.ManOn` | 2194 | Bool bit 1 | |
-
-### PompaAlta (base 2258)
-
-| Campo | Offset assoluto | Tipo |
-|---|---|---|
-| `DatiHMI.Stato.On` | 2262 | Bool bit 1 |
-| `DatiHMI.Local.ManOn` | 2276 | Bool bit 1 |
-
-### PompaBassa (base 2338)
-
-| Campo | Offset assoluto | Tipo |
-|---|---|---|
-| `DatiHMI.Stato.On` | 2342 | Bool bit 1 |
-| `DatiHMI.Local.ManOn` | 2356 | Bool bit 1 |
-
-### PompaGas (base 2418)
-
-| Campo | Offset assoluto | Tipo |
-|---|---|---|
-| `DatiHMI.Stato.On` | 2422 | Bool bit 1 |
-| `DatiHMI.Local.ManOn` | 2436 | Bool bit 1 |
-
-### Varie
+### CaldaiaGas (DatiHMI.Stato base 7268)
 
 | Campo | Offset assoluto | Tipo | Note |
 |---|---|---|---|
-| `TemperaturaCollettore` | 2534 | Real Float32 BE | °C collettore |
-| `PelletNonAvviato` | 2538 | Bool bit 0 | |
+| `DatiHMI.Stato.On` | 7268.1 | Bool bit 1 | |
+| `DatiHMI.Stato.Disabilitata` | 7268.5 | Bool bit 5 | |
+| `DatiHMI.StatoInt` | 7270 | Int16 BE | stessi codici caldaia |
+| `DatiHMI.Local.ManOn` | 7284.1 | Bool bit 1 | |
+
+### PompaAlta
+
+| Campo | Offset assoluto | Tipo |
+|---|---|---|
+| `DatiHMI.Stato.On` | 7306.1 | Bool bit 1 |
+| `DatiHMI.Local.ManOn` | 7320.1 | Bool bit 1 |
+
+### PompaBassa
+
+| Campo | Offset assoluto | Tipo |
+|---|---|---|
+| `DatiHMI.Stato.On` | 7340.1 | Bool bit 1 |
+| `DatiHMI.Local.ManOn` | 7354.1 | Bool bit 1 |
+
+### PompaGas
+
+| Campo | Offset assoluto | Tipo |
+|---|---|---|
+| `DatiHMI.Stato.On` | 7374.1 | Bool bit 1 |
+| `DatiHMI.Local.ManOn` | 7388.1 | Bool bit 1 |
 
 ---
 

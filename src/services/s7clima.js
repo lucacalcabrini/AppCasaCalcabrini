@@ -1,50 +1,62 @@
 import { Capacitor } from '@capacitor/core';
 
 // ─────────────────────────────────────────────────────────────────────────────
-// DB1 = DbRiscaldamento — layout verificato da TIA Portal (vedi PLC_REFERENCE.md)
-// PREREQUISITO: "Accesso ottimizzato al blocco" = OFF su DB1
+// DB1 = DbRiscaldamento — InstanceDB, layout verificato da tia_db_dump.xml
+// PREREQUISITO: "Accesso ottimizzato al blocco" = OFF — dim. totale: 10033 byte
 // ─────────────────────────────────────────────────────────────────────────────
 
-const DB = 1; // DbRiscaldamento
+const DB = 1;
 
-// ── Setup (offset 0) ─────────────────────────────────────────────────────────
-// byte 0: bit0=EstateInverno (0=Estate, 1=Inverno), bit1=GasEnable, bit2=PelletEnable
+// ── Setup (base 5544) ─────────────────────────────────────────────────────────
+// byte 0 (offset 5544): bit0=EstateInverno, bit1=GasEnable, bit2=PelletEnable, bit3=PelletPriority
+const SETUP_BASE       = 5544;
+const TEMP_COLLETT     = 5592; // Real Float32 BE — temperatura collettore
+const PELLET_NON_AVV   = 5596; // byte, bit 0
 
-// ── Zone TempStanze — basi assolute in DB1 ───────────────────────────────────
-const ZONE_BASE = {
-  camera:       10,
-  cameretta:    218,
-  ingresso:     426,
-  studio:       634,
-  corridoio:    842,
-  cantina:     1050,
-  salone:      1258,
-  cucina:      1466,
-  bagno_blu:   1674,
-  bagno_bianco:1882,
+// ── Zone TempStanze — DatiHMI base addresses ──────────────────────────────────
+// Stride: 162 byte. Fonte: DbRiscaldamento InstanceDB (tia_db_dump.xml)
+const ZONE_HMI_BASE = {
+  camera:       5610,
+  cameretta:    5772,
+  ingresso:     5934,
+  studio:       6096,
+  corridoio:    6258,
+  cantina:      6420,
+  salone:       6582,
+  cucina:       6744,
+  bagno_blu:    6906,
+  bagno_bianco: 7068,
 };
 
-// Offset relativi a zone_base:
-const R_MAN_AUTO  = 20;  // byte, bit 0 — 0=Manuale 1=Automatico
-const R_SP_MAN    = 22;  // Real Float32 BE — setpoint manuale (da scrivere)
-const R_ACT_SP    = 138; // Real Float32 BE — setpoint attivo calcolato dal PLC
-const R_OUT       = 144; // byte, bit 0 — 1=richiede calore (ON/OFF, non percentuale)
+// Offset relativi a ZONE_HMI_BASE[id]:
+const R_ENABLE   = 0;   // byte, bit 0 — 0=zona disabilitata
+const R_MAN_AUTO = 2;   // byte, bit 0 — 0=Manuale, 1=Automatico
+const R_SP_MAN   = 4;   // Real Float32 BE — SetpointMAN (da scrivere in modalità manuale)
+const R_ACT_SP   = 120; // Real Float32 BE — ActSetpoint (calcolato dal PLC)
+const R_OUT      = 126; // byte, bit 0 — 1=zona richiede calore (ON/OFF, non %)
 
-// ── Impianti — offset assoluti in DB1 ────────────────────────────────────────
-const PELLET_STATO   = 2094; // byte: bit1=On, bit3=Allarme, bit5=Disabilitata
-const PELLET_STAINT  = 2096; // Int16 BE: 100=avv,120=ON,140=speg,160=allarme,180=att,200=dis
-const PELLET_LOCAL   = 2110; // byte: bit0=AutoLocal, bit1=ManOn (write)
-const GAS_STATO      = 2178; // byte: bit1=On, bit5=Disabilitata
-const GAS_STAINT     = 2180; // Int16 BE
-const GAS_LOCAL      = 2194; // byte: bit1=ManOn
-const ALTA_STATO     = 2262; // byte: bit1=On
-const ALTA_LOCAL     = 2276; // byte: bit1=ManOn
-const BASSA_STATO    = 2342; // byte: bit1=On
-const BASSA_LOCAL    = 2356; // byte: bit1=ManOn
-const GASP_STATO     = 2422; // byte: bit1=On
-const GASP_LOCAL     = 2436; // byte: bit1=ManOn
-const TEMP_COLLETT   = 2534; // Real Float32 BE — temperatura collettore
-const PELLET_NON_AVV = 2538; // byte, bit 0
+// ── Caldaia Pellet — DatiHMI (DatiCaldaia, 30B) @ 7230 ───────────────────────
+const PELLET_STATO   = 7230; // byte: bit0=Avviamento, bit1=On, bit2=Spegnimento, bit3=Allarme, bit5=Disabilitata
+const PELLET_STAINT  = 7232; // Int16 BE: 100=avv,120=ON,140=speg,160=allarme,180=att,200=dis
+const PELLET_LOCAL   = 7246; // byte: bit0=AutoLocal, bit1=ManOn (write)
+
+// ── Caldaia Gas — DatiHMI @ 7268 ─────────────────────────────────────────────
+const GAS_STATO   = 7268; // byte: bit1=On, bit5=Disabilitata
+const GAS_STAINT  = 7270; // Int16 BE
+const GAS_LOCAL   = 7284; // byte: bit1=ManOn
+
+// ── Pompe — DatiHMI ──────────────────────────────────────────────────────────
+const ALTA_STATO  = 7306; // byte: bit1=On
+const ALTA_LOCAL  = 7320; // byte: bit1=ManOn
+const BASSA_STATO = 7340; // byte: bit1=On
+const BASSA_LOCAL = 7354; // byte: bit1=ManOn
+const GASP_STATO  = 7374; // byte: bit1=On
+const GASP_LOCAL  = 7388; // byte: bit1=ManOn
+
+// ── Batch read unico — tutto da SETUP_BASE a fine impianti ───────────────────
+// Range: 5544..7400 = 1856 byte, copre setup + tutte le zone + caldaie + pompe
+const BATCH_START = SETUP_BASE; // 5544
+const BATCH_SIZE  = 1856;       // copre fino a offset 7400
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -64,54 +76,50 @@ function b64ToBytes(b64) {
   return bytes;
 }
 
-function readF32(bytes, offset) {
-  return new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength).getFloat32(offset, false);
-}
-
-function readI16(bytes, offset) {
-  return new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength).getInt16(offset, false);
-}
-
+function readF32(dv, offset) { return dv.getFloat32(offset, false); }
+function readI16(dv, offset) { return dv.getInt16(offset, false); }
 function bit(byte, n) { return ((byte >> n) & 1) === 1; }
+
+// Offset nel buffer del batch (assoluto → relativo a BATCH_START)
+const B = (abs) => abs - BATCH_START;
 
 // ── Estate / Inverno ─────────────────────────────────────────────────────────
 
 export async function s7ReadEstateInverno() {
   if (!S7Plugin) throw new Error('S7 non disponibile');
-  const r = await S7Plugin.readBlock({ db: DB, start: 0, size: 2 });
+  const r = await S7Plugin.readBlock({ db: DB, start: SETUP_BASE, size: 2 });
   const b = b64ToBytes(r.data);
-  return bit(b[0], 0); // 0=Estate, 1=Inverno (raw PLC bit)
+  return bit(b[0], 0); // 0=Estate, 1=Inverno
 }
 
 export async function s7WriteEstateInverno(value) {
   if (!S7Plugin) throw new Error('S7 non disponibile');
-  // Read-modify-write per preservare GasEnable/PelletEnable nello stesso byte
-  const r = await S7Plugin.readBlock({ db: DB, start: 0, size: 2 });
+  const r = await S7Plugin.readBlock({ db: DB, start: SETUP_BASE, size: 2 });
   const bytes = b64ToBytes(r.data);
   let byte0 = bytes[0];
   if (value) byte0 |= 0x01; else byte0 &= 0xFE;
-  await S7Plugin.writeByte({ db: DB, offset: 0, value: byte0 });
+  await S7Plugin.writeByte({ db: DB, offset: SETUP_BASE, value: byte0 });
 }
 
 // ── Lettura tutte le zone (batch) ────────────────────────────────────────────
 
 export async function s7ReadClimaAll(zoneList) {
   if (!S7Plugin) throw new Error('S7 non disponibile');
-  // Copre setup(0) + tutte le zone (ultima BagnoBianco: 1882+144+1 = 2027)
-  const START = 0, SIZE = 2028;
-  const r = await S7Plugin.readBlock({ db: DB, start: START, size: SIZE });
+  const r = await S7Plugin.readBlock({ db: DB, start: BATCH_START, size: BATCH_SIZE });
   const buf = b64ToBytes(r.data);
+  const dv  = new DataView(buf.buffer, buf.byteOffset, buf.byteLength);
 
   const result = {};
   for (const zona of zoneList) {
-    const base = ZONE_BASE[zona.id];
+    const base = ZONE_HMI_BASE[zona.id];
     if (base === undefined) continue;
-    const o = base - START;
+    const o = B(base);
     result[zona.id] = {
+      enabled:     bit(buf[o + R_ENABLE],   0),
       manuale:     !bit(buf[o + R_MAN_AUTO], 0), // 0=manuale→true, 1=auto→false
-      setpoint:    readF32(buf, o + R_ACT_SP),    // setpoint attivo PLC
-      setpointMAN: readF32(buf, o + R_SP_MAN),    // setpoint manuale scritto
-      riscalda:    bit(buf[o + R_OUT], 0),         // true = richiede calore
+      setpoint:    readF32(dv, o + R_ACT_SP),     // setpoint attivo calcolato dal PLC
+      setpointMAN: readF32(dv, o + R_SP_MAN),     // setpoint manuale
+      riscalda:    bit(buf[o + R_OUT], 0),          // true = richiede calore
     };
   }
   return result;
@@ -121,7 +129,7 @@ export async function s7ReadClimaAll(zoneList) {
 
 export async function s7WriteSetpoint(zoneId, value) {
   if (!S7Plugin) throw new Error('S7 non disponibile');
-  const base = ZONE_BASE[zoneId];
+  const base = ZONE_HMI_BASE[zoneId];
   if (base === undefined) throw new Error(`Zona sconosciuta: ${zoneId}`);
   await S7Plugin.writeFloat({ db: DB, offset: base + R_SP_MAN, value });
   await S7Plugin.writeByte({ db: DB, offset: base + R_MAN_AUTO, value: 0 }); // 0=Manuale
@@ -129,42 +137,42 @@ export async function s7WriteSetpoint(zoneId, value) {
 
 export async function s7WriteManAuto(zoneId, manuale) {
   if (!S7Plugin) throw new Error('S7 non disponibile');
-  const base = ZONE_BASE[zoneId];
+  const base = ZONE_HMI_BASE[zoneId];
   if (base === undefined) throw new Error(`Zona sconosciuta: ${zoneId}`);
   // 0=Manuale, 1=Automatico
   await S7Plugin.writeByte({ db: DB, offset: base + R_MAN_AUTO, value: manuale ? 0 : 1 });
 }
 
-// ── Lettura impianti (batch) ──────────────────────────────────────────────────
+// ── Lettura impianti (batch condiviso con zone) ───────────────────────────────
 
 export async function s7ReadImpianti() {
   if (!S7Plugin) throw new Error('S7 non disponibile');
-  const START = 2090, SIZE = 452;
-  const r = await S7Plugin.readBlock({ db: DB, start: START, size: SIZE });
+  const r = await S7Plugin.readBlock({ db: DB, start: BATCH_START, size: BATCH_SIZE });
   const buf = b64ToBytes(r.data);
-  const o = (abs) => abs - START;
+  const dv  = new DataView(buf.buffer, buf.byteOffset, buf.byteLength);
+  const o   = B; // alias
 
   const pelletByte = buf[o(PELLET_STATO)];
   const gasByte    = buf[o(GAS_STATO)];
 
   return {
     caldaiaPellet: {
-      on:          bit(pelletByte, 1),
-      allarme:     bit(pelletByte, 3),
-      disabilitata:bit(pelletByte, 5),
-      statoInt:    readI16(buf, o(PELLET_STAINT)),
-      manOn:       bit(buf[o(PELLET_LOCAL)], 1),
+      on:           bit(pelletByte, 1),
+      allarme:      bit(pelletByte, 3),
+      disabilitata: bit(pelletByte, 5),
+      statoInt:     readI16(dv, o(PELLET_STAINT)),
+      manOn:        bit(buf[o(PELLET_LOCAL)], 1),
     },
     caldaiaGas: {
-      on:          bit(gasByte, 1),
-      disabilitata:bit(gasByte, 5),
-      statoInt:    readI16(buf, o(GAS_STAINT)),
-      manOn:       bit(buf[o(GAS_LOCAL)], 1),
+      on:           bit(gasByte, 1),
+      disabilitata: bit(gasByte, 5),
+      statoInt:     readI16(dv, o(GAS_STAINT)),
+      manOn:        bit(buf[o(GAS_LOCAL)], 1),
     },
     pompaAlta:  { on: bit(buf[o(ALTA_STATO)],  1), manOn: bit(buf[o(ALTA_LOCAL)],  1) },
     pompaBassa: { on: bit(buf[o(BASSA_STATO)], 1), manOn: bit(buf[o(BASSA_LOCAL)], 1) },
     pompaGas:   { on: bit(buf[o(GASP_STATO)],  1), manOn: bit(buf[o(GASP_LOCAL)],  1) },
-    tempCollettore: readF32(buf, o(TEMP_COLLETT)),
+    tempCollettore: readF32(dv, o(TEMP_COLLETT)),
     pelletNonAvv:   bit(buf[o(PELLET_NON_AVV)], 0),
   };
 }
@@ -188,24 +196,22 @@ export const s7WriteGasPManOn   = (v) => writeManOn(GASP_LOCAL,   v);
 
 // ── Energia (DB11 — ContEnergia) ─────────────────────────────────────────────
 // PREREQUISITO: "Accesso ottimizzato al blocco" = OFF su DB11
-// Struttura verificata da TIA Portal:
-//   0: OldH (USInt), 1: OldD (USInt), 2: OldMin (USInt), 4: T_Diff (Real)
+// Struttura verificata da tia_db_dump.xml — dim. totale: 1462 byte
+//   0: OldH (USInt), 1: OldD, 2: OldMin, 4: T_Diff (Real)
 //   8: Actual_Kw (Real), 12: Kwh_Giorno (Real), 16: Kwh_GiornoOld (Real)
 //  20: Kwh_Ora (Real), 24: ContPulseGiorno (Real), 28: ContPulseOra (Real)
-//  32: Consumo[1..7] — Array of Struct, stride 102 byte:
+//  32: Consumo_KWH (DatiConteggio) → Consumo[1..7], stride 102B:
 //       +0..+95: KWH[0..23] (24×Real), +96: Data (Date 2B), +98: Total_KWH (Real)
 // 746: Indice old (Int)
+// 748: Consumo (secondo array, FIFO esteso — non usato dall'app)
 
 const DB11 = 11;
-
-// Dimensione di ogni slot giorno: 24 Reals (96B) + Date (2B) + Total_KWH (4B) = 102B
-const ENERGIA_DAY_STRIDE = 102;
+const ENERGIA_DAY_STRIDE  = 102;
 const ENERGIA_CONSUMO_START = 32;
 
 export async function s7ReadEnergia() {
   if (!S7Plugin) throw new Error('S7 non disponibile');
-
-  // Legge tutto il DB11 in un colpo (748 byte)
+  // Legge i primi 748 byte (header + Consumo_KWH + Indice old)
   const r = await S7Plugin.readBlock({ db: DB11, start: 0, size: 748 });
   const buf = b64ToBytes(r.data);
   const dv  = new DataView(buf.buffer, buf.byteOffset, buf.byteLength);
@@ -214,7 +220,7 @@ export async function s7ReadEnergia() {
   const kwhDay  = dv.getFloat32(12, false);
   const kwhHour = dv.getFloat32(20, false);
 
-  // 7-day history: Consumo[1..7], indice 1-based
+  // 7-day history: Consumo[1..7]
   const history = [];
   for (let d = 0; d < 7; d++) {
     const base = ENERGIA_CONSUMO_START + d * ENERGIA_DAY_STRIDE;
@@ -222,9 +228,8 @@ export async function s7ReadEnergia() {
     for (let h = 0; h < 24; h++) {
       hours.push(dv.getFloat32(base + h * 4, false));
     }
-    // Date: 2 byte = giorni da 1990-01-01 (tipo S7 Date)
     const dateDays = dv.getUint16(base + 96, false);
-    const date     = dateDays > 0
+    const date = dateDays > 0
       ? new Date(Date.UTC(1990, 0, 1) + dateDays * 86400000).toISOString().slice(0, 10)
       : null;
     const total = dv.getFloat32(base + 98, false);
@@ -233,7 +238,7 @@ export async function s7ReadEnergia() {
 
   return {
     casa: { kw, kwhDay, kwhHour, history },
-    pozzo: null, // TODO: implementare quando arriva struttura DB PLC pozzo
+    pozzo: null,
   };
 }
 
