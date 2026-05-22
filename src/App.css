@@ -507,3 +507,25 @@ body {
 .energia-stat-val   { display: block; font-family: var(--font-mono); font-size: 16px; font-weight: 700; }
 .energia-stat-label { display: block; font-size: 10px; color: var(--text-muted); margin-top: 3px; text-transform: uppercase; letter-spacing: 0.5px; }
 
+/* ── Grafico ore (storia 7gg) ── */
+.hour-chart { margin-top: 8px; }
+.hour-chart-title { font-size: 12px; font-weight: 600; color: var(--text-secondary); margin-bottom: 6px; }
+.hour-chart-bars {
+  display: flex; align-items: flex-end; gap: 2px;
+  height: 64px; padding: 0 2px;
+}
+.hour-bar-wrap {
+  flex: 1; display: flex; align-items: flex-end;
+  height: 100%; cursor: default;
+}
+.hour-bar {
+  width: 100%; min-height: 2px;
+  border-radius: 2px 2px 0 0;
+  transition: height 0.4s ease;
+}
+.hour-chart-footer {
+  display: flex; justify-content: space-between;
+  font-size: 9px; color: var(--text-muted);
+  padding: 2px 2px 0;
+}
+

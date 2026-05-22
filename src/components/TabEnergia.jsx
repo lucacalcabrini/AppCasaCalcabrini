@@ -1,13 +1,47 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { s7ReadEnergia } from '../services/s7clima';
+import { s7ReadEnergia, s7ReadEnergiaFast } from '../services/s7clima';
 
-const POLL_INTERVAL = 10000;
+const POLL_FAST_MS  = 5000;  // aggiorna kW istantaneo ogni 5s
+const POLL_FULL_MS  = 60000; // aggiorna history ogni 60s
 
+// ── Etichette ore ─────────────────────────────────────────────────────────────
+const HOUR_LABELS = Array.from({ length: 24 }, (_, i) => `${i}h`);
+
+// ── Grafico barre 24h ─────────────────────────────────────────────────────────
+function HourChart({ hours, date }) {
+  if (!hours || hours.length === 0) return null;
+  const max = Math.max(...hours, 0.01);
+  const label = date
+    ? new Date(date + 'T12:00:00Z').toLocaleDateString('it-IT', { weekday: 'short', day: 'numeric', month: 'short' })
+    : '—';
+
+  return (
+    <div className="hour-chart">
+      <div className="hour-chart-title">{label}</div>
+      <div className="hour-chart-bars">
+        {hours.map((v, h) => {
+          const pct = (v / max) * 100;
+          const color = v > 2 ? 'var(--accent-orange)' : v > 0.5 ? 'var(--accent-green)' : 'var(--text-muted)';
+          return (
+            <div key={h} className="hour-bar-wrap" title={`${HOUR_LABELS[h]}: ${v.toFixed(3)} kWh`}>
+              <div className="hour-bar" style={{ height: `${pct}%`, background: color }} />
+            </div>
+          );
+        })}
+      </div>
+      <div className="hour-chart-footer">
+        <span>0h</span><span>6h</span><span>12h</span><span>18h</span><span>23h</span>
+      </div>
+    </div>
+  );
+}
+
+// ── Card principale ───────────────────────────────────────────────────────────
 function EnergyCard({ icona, nome, data }) {
   if (!data) return null;
-  const { kw, kwhDay, kwhHour, media } = data;
+  const { kw, kwhDay, kwhHour } = data;
 
-  const barMax = 6; // kW massimi per la barra
+  const barMax = 6;
   const barPct = kw !== null ? Math.min(100, (kw / barMax) * 100) : 0;
   const barColor = kw > 4 ? 'var(--accent-red)' : kw > 2.5 ? 'var(--accent-amber)' : 'var(--accent-green)';
 
@@ -18,7 +52,6 @@ function EnergyCard({ icona, nome, data }) {
         <span className="energia-nome">{nome}</span>
       </div>
 
-      {/* Potenza attuale — grande */}
       <div className="energia-kw">
         <span className="energia-kw-val" style={{ color: barColor }}>
           {kw !== null ? kw.toFixed(2) : '—'}
@@ -26,7 +59,6 @@ function EnergyCard({ icona, nome, data }) {
         <span className="energia-kw-unit">kW</span>
       </div>
 
-      {/* Barra carico */}
       <div className="valvola-bar" style={{ marginBottom: 16 }}>
         <div
           className="valvola-fill"
@@ -34,7 +66,6 @@ function EnergyCard({ icona, nome, data }) {
         />
       </div>
 
-      {/* Griglia dati */}
       <div className="energia-grid">
         <div className="energia-stat">
           <span className="energia-stat-val">{kwhDay !== null ? kwhDay.toFixed(1) : '—'}</span>
@@ -46,39 +77,106 @@ function EnergyCard({ icona, nome, data }) {
             <span className="energia-stat-label">kWh ora</span>
           </div>
         )}
-        {media !== undefined && (
-          <div className="energia-stat">
-            <span className="energia-stat-val">{media !== null ? media.toFixed(2) : '—'}</span>
-            <span className="energia-stat-label">Media kW</span>
-          </div>
-        )}
       </div>
     </div>
   );
 }
 
+// ── Riquadro storico 7 giorni ─────────────────────────────────────────────────
+function Storia7Giorni({ history }) {
+  const [selected, setSelected] = useState(0);
+  if (!history || history.length === 0) return null;
+
+  // Ordina per data decrescente (più recente prima), filtra slot vuoti
+  const giorni = [...history]
+    .filter(g => g.date !== null && g.total > 0)
+    .sort((a, b) => (b.date > a.date ? 1 : -1));
+
+  if (giorni.length === 0) return null;
+
+  return (
+    <div className="card" style={{ marginTop: 8 }}>
+      <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 8 }}>
+        Storico 7 giorni
+      </div>
+
+      {/* Selezione giorno */}
+      <div style={{ display: 'flex', gap: 6, overflowX: 'auto', paddingBottom: 8 }}>
+        {giorni.map((g, i) => {
+          const lbl = new Date(g.date + 'T12:00:00Z').toLocaleDateString('it-IT', { weekday: 'short', day: 'numeric' });
+          return (
+            <button
+              key={g.date}
+              onClick={() => setSelected(i)}
+              style={{
+                flex: '0 0 auto',
+                padding: '4px 10px',
+                borderRadius: 8,
+                border: 'none',
+                fontSize: 12,
+                fontWeight: selected === i ? 700 : 400,
+                background: selected === i ? 'var(--accent-green)' : 'var(--surface-2)',
+                color: selected === i ? '#fff' : 'var(--text-secondary)',
+                cursor: 'pointer',
+              }}
+            >
+              {lbl}
+            </button>
+          );
+        })}
+      </div>
+
+      {/* Grafico ore del giorno selezionato */}
+      <HourChart hours={giorni[selected]?.hours} date={giorni[selected]?.date} />
+
+      {/* Totale giorno */}
+      <div style={{ textAlign: 'right', fontSize: 12, color: 'var(--text-secondary)', marginTop: 4 }}>
+        Totale: <strong style={{ color: 'var(--text-primary)' }}>{giorni[selected]?.total.toFixed(2)} kWh</strong>
+      </div>
+    </div>
+  );
+}
+
+// ── Componente principale ─────────────────────────────────────────────────────
 export default function TabEnergia({ connMode }) {
   const isLocal = connMode === 'local';
-  const [energia, setEnergia] = useState(null);
-  const [error, setError]     = useState(false);
+  const [energia, setEnergia]   = useState(null);
+  const [error, setError]       = useState(false);
 
-  const poll = useCallback(async () => {
+  // Lettura completa (con history) — ogni minuto
+  const pollFull = useCallback(async () => {
     try {
       const d = await s7ReadEnergia();
       if (d) { setEnergia(d); setError(false); }
       else setError(true);
     } catch (e) {
-      console.warn('[Energia] poll error:', e.message);
+      console.warn('[Energia] poll full error:', e.message);
       setError(true);
+    }
+  }, []);
+
+  // Lettura veloce (solo kW istantaneo) — ogni 5s
+  const pollFast = useCallback(async () => {
+    try {
+      const d = await s7ReadEnergiaFast();
+      if (d) {
+        setEnergia(prev => prev
+          ? { ...prev, casa: { ...prev.casa, kw: d.casa.kw, kwhDay: d.casa.kwhDay, kwhHour: d.casa.kwhHour } }
+          : d
+        );
+      }
+    } catch (e) {
+      console.warn('[Energia] poll fast error:', e.message);
     }
   }, []);
 
   useEffect(() => {
     if (!isLocal) return;
-    poll();
-    const t = setInterval(poll, POLL_INTERVAL);
-    return () => clearInterval(t);
-  }, [isLocal, poll]);
+    pollFull();
+    const tFull = setInterval(pollFull, POLL_FULL_MS);
+    const tFast = setInterval(pollFast, POLL_FAST_MS);
+    return () => { clearInterval(tFull); clearInterval(tFast); };
+  }, [isLocal, pollFull, pollFast]);
 
   if (!isLocal) {
     return (
@@ -86,7 +184,7 @@ export default function TabEnergia({ connMode }) {
         <div className="emoji">🔒</div>
         <p style={{ fontSize: 16, fontWeight: 600, marginBottom: 8 }}>Solo su WiFi casa</p>
         <p style={{ fontSize: 13, color: 'var(--text-secondary)', maxWidth: 260, margin: '0 auto' }}>
-          Il monitoraggio energia richiede connessione diretta al PLC tramite OPC UA.
+          Il monitoraggio energia richiede connessione diretta al PLC.
         </p>
       </div>
     );
@@ -110,14 +208,14 @@ export default function TabEnergia({ connMode }) {
     );
   }
 
-  const totaleKw = (energia.casa?.kw ?? 0) + (energia.pozzo?.kw ?? 0);
+  const totaleKw = energia.casa?.kw ?? 0;
 
   return (
     <>
       {/* Totale istantaneo */}
       <div className="card" style={{ textAlign: 'center', marginBottom: 12 }}>
         <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 4 }}>
-          Potenza totale istantanea
+          Potenza istantanea
         </div>
         <div style={{ fontSize: 42, fontWeight: 700, color: totaleKw > 5 ? 'var(--accent-red)' : totaleKw > 3 ? 'var(--accent-amber)' : 'var(--accent-green)' }}>
           {totaleKw.toFixed(2)}
@@ -127,9 +225,9 @@ export default function TabEnergia({ connMode }) {
 
       <div className="section-title">Contatori</div>
       <EnergyCard icona="🏠" nome="Casa" data={energia.casa} />
-      {energia.pozzo?.kw !== null && (
-        <EnergyCard icona="💧" nome="Pozzo" data={energia.pozzo} />
-      )}
+
+      {/* Grafico storico 7 giorni */}
+      {energia.casa?.history && <Storia7Giorni history={energia.casa.history} />}
     </>
   );
 }

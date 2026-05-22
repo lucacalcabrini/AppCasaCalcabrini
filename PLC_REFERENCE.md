@@ -117,11 +117,53 @@ File di riferimento per Claude. Aggiornare ogni volta che arrivano nuovi dati TI
 
 ---
 
-## DB11 — ContEnergia ⏳ (in attesa dati TIA Portal)
+## DB11 — ContEnergia ✅ (implementato in s7clima.js)
 
-**Accesso ottimizzato**: da verificare  
-**Note**: buffer 7gg × 24h di kWh  
-Struttura da ricevere dall'utente.
+**Accesso ottimizzato**: OFF  
+**Struttura**: Header (32 byte) + `Consumo[1..7]` (7 giorni × 102 byte) + `Indice old` (2 byte)
+
+### Header (offset assoluti)
+
+| Variabile | Offset | Tipo | Note |
+|---|---|---|---|
+| `OldH` | 0 | USInt | Ora precedente (fronte cambio ora) |
+| `OldD` | 1 | USInt | Giorno precedente |
+| `OldMin` | 2 | USInt | Minuto precedente |
+| `T_Diff` | 4 | Real | ms tra impulsi contatore |
+| `Actual_Kw` | 8 | Real Float32 BE | **Potenza istantanea kW** |
+| `Kwh_Giorno` | 12 | Real Float32 BE | **kWh giornata corrente** |
+| `Kwh_GiornoOld` | 16 | Real Float32 BE | kWh giorno precedente |
+| `Kwh_Ora` | 20 | Real Float32 BE | **kWh ora corrente** |
+| `ContPulseGiorno` | 24 | Real | Contatore impulsi oggi |
+| `ContPulseOra` | 28 | Real | Contatore impulsi ora corrente |
+
+### Consumo[1..7] — buffer 7 giorni (base 32, stride 102 byte)
+
+`Consumo[d]` base = `32 + (d-1) * 102`
+
+| Campo | Offset rel | Tipo | Note |
+|---|---|---|---|
+| `KWH[0..23]` | +0..+92 | Real×24 | kWh per ora 0..23 (4 byte ciascuno) |
+| `Data` | +96 | Date (Uint16) | Giorni da 1990-01-01 |
+| `Total_KWH` | +98 | Real Float32 BE | Totale kWh della giornata |
+
+| Slot | Base assoluta |
+|---|---|
+| Consumo[1] | 32 |
+| Consumo[2] | 134 |
+| Consumo[3] | 236 |
+| Consumo[4] | 338 |
+| Consumo[5] | 440 |
+| Consumo[6] | 542 |
+| Consumo[7] | 644 |
+
+### Varie
+
+| Variabile | Offset | Tipo | Note |
+|---|---|---|---|
+| `Indice old` | 746 | Int16 BE | Indice slot attivo nel buffer circolare |
+
+**Lettura app**: `s7ReadEnergia()` legge 748 byte, restituisce `{kw, kwhDay, kwhHour, history[7]}`. `s7ReadEnergiaFast()` legge solo 32 byte per i valori istantanei.
 
 ---
 

@@ -186,8 +186,68 @@ export const s7WriteAltaManOn   = (v) => writeManOn(ALTA_LOCAL,   v);
 export const s7WriteBassaManOn  = (v) => writeManOn(BASSA_LOCAL,  v);
 export const s7WriteGasPManOn   = (v) => writeManOn(GASP_LOCAL,   v);
 
-// ── Energia (DB11 — in attesa struttura da TIA Portal) ───────────────────────
-// Implementare quando arrivano gli offset di DB11 (ContEnergia)
+// ── Energia (DB11 — ContEnergia) ─────────────────────────────────────────────
+// PREREQUISITO: "Accesso ottimizzato al blocco" = OFF su DB11
+// Struttura verificata da TIA Portal:
+//   0: OldH (USInt), 1: OldD (USInt), 2: OldMin (USInt), 4: T_Diff (Real)
+//   8: Actual_Kw (Real), 12: Kwh_Giorno (Real), 16: Kwh_GiornoOld (Real)
+//  20: Kwh_Ora (Real), 24: ContPulseGiorno (Real), 28: ContPulseOra (Real)
+//  32: Consumo[1..7] — Array of Struct, stride 102 byte:
+//       +0..+95: KWH[0..23] (24×Real), +96: Data (Date 2B), +98: Total_KWH (Real)
+// 746: Indice old (Int)
+
+const DB11 = 11;
+
+// Dimensione di ogni slot giorno: 24 Reals (96B) + Date (2B) + Total_KWH (4B) = 102B
+const ENERGIA_DAY_STRIDE = 102;
+const ENERGIA_CONSUMO_START = 32;
+
 export async function s7ReadEnergia() {
-  return null; // placeholder
+  if (!S7Plugin) throw new Error('S7 non disponibile');
+
+  // Legge tutto il DB11 in un colpo (748 byte)
+  const r = await S7Plugin.readBlock({ db: DB11, start: 0, size: 748 });
+  const buf = b64ToBytes(r.data);
+  const dv  = new DataView(buf.buffer, buf.byteOffset, buf.byteLength);
+
+  const kw      = dv.getFloat32(8,  false);
+  const kwhDay  = dv.getFloat32(12, false);
+  const kwhHour = dv.getFloat32(20, false);
+
+  // 7-day history: Consumo[1..7], indice 1-based
+  const history = [];
+  for (let d = 0; d < 7; d++) {
+    const base = ENERGIA_CONSUMO_START + d * ENERGIA_DAY_STRIDE;
+    const hours = [];
+    for (let h = 0; h < 24; h++) {
+      hours.push(dv.getFloat32(base + h * 4, false));
+    }
+    // Date: 2 byte = giorni da 1990-01-01 (tipo S7 Date)
+    const dateDays = dv.getUint16(base + 96, false);
+    const date     = dateDays > 0
+      ? new Date(Date.UTC(1990, 0, 1) + dateDays * 86400000).toISOString().slice(0, 10)
+      : null;
+    const total = dv.getFloat32(base + 98, false);
+    history.push({ date, total, hours });
+  }
+
+  return {
+    casa: { kw, kwhDay, kwhHour, history },
+    pozzo: null, // TODO: implementare quando arriva struttura DB PLC pozzo
+  };
+}
+
+// Legge solo i valori istantanei (lettura leggera, 32 byte)
+export async function s7ReadEnergiaFast() {
+  if (!S7Plugin) throw new Error('S7 non disponibile');
+  const r = await S7Plugin.readBlock({ db: DB11, start: 0, size: 32 });
+  const dv = new DataView(b64ToBytes(r.data).buffer);
+  return {
+    casa: {
+      kw:      dv.getFloat32(8,  false),
+      kwhDay:  dv.getFloat32(12, false),
+      kwhHour: dv.getFloat32(20, false),
+    },
+    pozzo: null,
+  };
 }
