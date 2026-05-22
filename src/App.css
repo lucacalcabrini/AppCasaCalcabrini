@@ -507,6 +507,16 @@ body {
 .energia-stat-val   { display: block; font-family: var(--font-mono); font-size: 16px; font-weight: 700; }
 .energia-stat-label { display: block; font-size: 10px; color: var(--text-muted); margin-top: 3px; text-transform: uppercase; letter-spacing: 0.5px; }
 
+/* ── Tag stato pompa pozzo ── */
+.pozzo-tag {
+  display: inline-flex; align-items: center;
+  padding: 2px 8px; border-radius: 10px;
+  font-size: 11px; font-weight: 600;
+}
+.tag-ok   { background: rgba(34,197,94,.15); color: var(--accent-green); }
+.tag-off  { background: var(--surface-2);    color: var(--text-muted); }
+.tag-warn { background: rgba(251,191,36,.15); color: var(--accent-amber); }
+
 /* ── Grafico ore (storia 7gg) ── */
 .hour-chart { margin-top: 8px; }
 .hour-chart-title { font-size: 12px; font-weight: 600; color: var(--text-secondary); margin-bottom: 6px; }

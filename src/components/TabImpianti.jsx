@@ -7,8 +7,14 @@ import {
   s7WriteBassaManOn,
   s7WriteGasPManOn,
 } from '../services/s7clima';
+import {
+  s7ReadPozzo,
+  s7WritePozzoDisable,
+  s7WritePozzoResetEV,
+} from '../services/s7pozzo';
 
-const POLL_INTERVAL = 4000;
+const POLL_INTERVAL      = 4000;
+const POLL_POZZO_MS      = 5000;
 
 // Mappa statoInt → stringa leggibile (caldaie)
 function statoLabel(v) {
@@ -61,6 +67,8 @@ export default function TabImpianti({ connMode }) {
   const [data, setData]        = useState(null);
   const [error, setError]      = useState(false);
   const [resetFlash, setReset] = useState(false);
+  const [pozzo, setPozzo]      = useState(null);
+  const [pozzoError, setPozzoError] = useState(false);
 
   /* ── Polling ──────────────────────────────────────────────────────────── */
   const poll = useCallback(async () => {
@@ -74,12 +82,24 @@ export default function TabImpianti({ connMode }) {
     }
   }, []);
 
+  const pollPozzo = useCallback(async () => {
+    try {
+      const d = await s7ReadPozzo();
+      if (d) { setPozzo(d); setPozzoError(false); }
+    } catch (e) {
+      console.warn('[Pozzo] poll error:', e.message);
+      setPozzoError(true);
+    }
+  }, []);
+
   useEffect(() => {
     if (!isLocal) return;
     poll();
     const t = setInterval(poll, POLL_INTERVAL);
-    return () => clearInterval(t);
-  }, [isLocal, poll]);
+    pollPozzo();
+    const tp = setInterval(pollPozzo, POLL_POZZO_MS);
+    return () => { clearInterval(t); clearInterval(tp); };
+  }, [isLocal, poll, pollPozzo]);
 
   /* ── Helper aggiornamento ottimistico ManOn ─────────────────────────── */
   const toggleManOn = async (section, writeFn, value) => {
@@ -192,12 +212,78 @@ export default function TabImpianti({ connMode }) {
       />
 
       <div className="section-title" style={{ marginTop: 24 }}>Pompa Pozzo</div>
-      <div className="empty-state" style={{ paddingTop: 20, paddingBottom: 20 }}>
-        <div className="emoji" style={{ fontSize: 28 }}>💧</div>
-        <p style={{ fontSize: 13, color: 'var(--text-secondary)' }}>
-          In attesa della struttura DB del PLC pozzo (192.168.178.252)
-        </p>
-      </div>
+
+      {pozzoError && (
+        <div className="impianto-alert" style={{ marginBottom: 8 }}>
+          ⚠️ PLC Pozzo non raggiungibile (192.168.178.252)
+        </div>
+      )}
+
+      {pozzo && (
+        <div className={`impianto-card ${pozzo.on ? 'on' : ''}`}>
+          <div className="impianto-header">
+            <div className="impianto-title">
+              <span className="impianto-icona">💧</span>
+              <span className="impianto-nome">Pompa Pozzo</span>
+            </div>
+            <div className={`impianto-badge ${pozzo.on ? 'badge-on' : 'badge-off'}`}>
+              {pozzo.on ? '● ACCESA' : '○ SPENTA'}
+            </div>
+          </div>
+
+          {/* Abilitazioni */}
+          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', margin: '8px 0' }}>
+            <span className={`pozzo-tag ${pozzo.enbOrario ? 'tag-ok' : 'tag-off'}`}>
+              {pozzo.enbOrario ? '✓' : '✗'} Orario
+            </span>
+            <span className={`pozzo-tag ${pozzo.enbAssorbimento ? 'tag-ok' : 'tag-off'}`}>
+              {pozzo.enbAssorbimento ? '✓' : '✗'} Assorbimento
+            </span>
+            {pozzo.bypassOrario && (
+              <span className="pozzo-tag tag-warn">⚡ Bypass orario</span>
+            )}
+          </div>
+
+          {/* Allarmi */}
+          {pozzo.allarmeTempoAvvio && (
+            <div className="impianto-alert">⚠️ Allarme: tempo avvio superato</div>
+          )}
+
+          {/* Controlli */}
+          <div className="impianto-controls">
+            <div className="segmented" style={{ flex: 1 }}>
+              <button
+                className={`seg-btn ${!pozzo.disableDaHMI ? 'active' : ''}`}
+                onClick={async () => {
+                  setPozzo(p => ({ ...p, disableDaHMI: false }));
+                  try { await s7WritePozzoDisable(false); } catch (_) { setPozzo(p => ({ ...p, disableDaHMI: true })); }
+                }}
+              >ABILITATA</button>
+              <button
+                className={`seg-btn ${pozzo.disableDaHMI ? 'active' : ''}`}
+                onClick={async () => {
+                  setPozzo(p => ({ ...p, disableDaHMI: true }));
+                  try { await s7WritePozzoDisable(true); } catch (_) { setPozzo(p => ({ ...p, disableDaHMI: false })); }
+                }}
+              >DISABILITATA</button>
+            </div>
+            <button
+              className="seg-btn"
+              style={{ marginLeft: 8, flex: '0 0 auto', minWidth: 80 }}
+              onClick={async () => {
+                try { await s7WritePozzoResetEV(); } catch (e) { console.warn('ResetEV error:', e.message); }
+              }}
+            >Reset EV</button>
+          </div>
+        </div>
+      )}
+
+      {!pozzo && !pozzoError && (
+        <div className="empty-state" style={{ paddingTop: 20, paddingBottom: 20 }}>
+          <div className="emoji" style={{ fontSize: 28 }}>💧</div>
+          <p style={{ fontSize: 13, color: 'var(--text-secondary)' }}>Lettura PLC pozzo...</p>
+        </div>
+      )}
     </>
   );
 }

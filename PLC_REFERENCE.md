@@ -167,11 +167,45 @@ File di riferimento per Claude. Aggiornare ogni volta che arrivano nuovi dati TI
 
 ---
 
-## CPU pozzo — 192.168.178.252
+## CPU pozzo — 192.168.178.252 ✅ (implementato in s7pozzo.js)
 
-**S7 GET/PUT**: IP separato, stessa procedura (rack=0, slot=1 presumibilmente)  
-**DB**: da ricevere dall'utente  
-**Dati attesi**: GestionePompa, STS_Pompa (Int), ScattoTermico, DisableDaHMI, Enb.orario, Bypass.Orario, ContEnergia, ResetEV
+**Modello**: S7-1200 (rack=0, slot=1)  
+**Protocollo**: S7 GET/PUT, porta 102  
+**PREREQUISITO**: "Accesso ottimizzato al blocco" = OFF su DB2 e DB11
+
+### DB2 — GestionePompa ✅
+
+| Variabile | Offset | Tipo | Note |
+|---|---|---|---|
+| `SetupEnbTime.Start` | 0 | Time_Of_Day (4B) | ora inizio abilitazione |
+| `SetupEnbTime.Stop` | 4 | Time_Of_Day (4B) | ora fine abilitazione |
+| `DisableDaHMI` | 8.0 | Bool bit 0 | 1=pompa disabilitata da app (write) |
+| `ResetEV` | 8.1 | Bool bit 1 | impulso reset elettrovalvola (write) |
+| `Enb.orario` | 10.0 | Bool bit 0 | 1=condizione oraria soddisfatta |
+| `Enb.assorbimento` | 10.1 | Bool bit 1 | 1=condizione assorbimento soddisfatta |
+| `Bypass.Orario` | 12.0 | Bool bit 0 | bypass orario attivo |
+| `Bypass.Assorbimento` | 12.1 | Bool bit 1 | bypass assorbimento attivo |
+| `STS_Pompa` | 14 | Int16 BE | **0=off, 1=running** |
+| `AllarmeTempoAvvio` | 16.0 | Bool bit 0 | allarme tempo avvio superato |
+| `SetupTempoAllarme` | 18 | Time (DInt 4B) | default T#2H |
+
+**Lettura app**: 22 byte da offset 0. `on = STS_Pompa > 0`.
+
+**ScattoTermico** (`%E0.1`): ingresso fisico, inviato via PROFINET al PLC principale → appare come allarme `POMPA_GUASTO` (ALARMS[0]) nel DB6.
+
+### DB11 — ContEnergia (POZZO) ✅
+
+**Stessa struttura identica** del DB11 del PLC principale.  
+Traccia l'energia assorbita dalla pompa pozzo.  
+Lettura app: `s7ReadEnergiaPozzo()` legge 32 byte (Actual_Kw@8, Kwh_Giorno@12, Kwh_Ora@20).
+
+### Altri DB (non usati dall'app)
+
+| DB | Nome | Contenuto |
+|---|---|---|
+| DB1 | Com | Struttura comunicazione PROFINET con PLC principale |
+| DB10 | Allarmi | Array[1..64] of Bool — allarme[9]=ScattoTermico, allarme[10]=TempoAvvio |
+| DB3 | TempoMassimoPompa | TON timer per allarme tempo max |
 
 ---
 

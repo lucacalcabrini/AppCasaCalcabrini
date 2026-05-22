@@ -25,7 +25,8 @@ import java.util.concurrent.Executors;
 @CapacitorPlugin(name = "S7Plugin")
 public class S7Plugin extends Plugin {
 
-    private S7Connector connector = null;
+    private S7Connector connector      = null; // PLC principale 192.168.178.250
+    private S7Connector connectorPozzo = null; // PLC pozzo     192.168.178.252
     private final ExecutorService executor = Executors.newSingleThreadExecutor();
 
     @PluginMethod
@@ -136,6 +137,78 @@ public class S7Plugin extends Plugin {
             try {
                 byte[] buf = new byte[] { (byte) (value & 0xFF) };
                 connector.write(DaveArea.DB, db, offset, buf);
+                JSObject ret = new JSObject();
+                ret.put("ok", true);
+                call.resolve(ret);
+            } catch (Exception e) { call.reject(e.getMessage()); }
+        });
+    }
+
+    // ── PLC Pozzo (192.168.178.252) — connector separato ──────────────────────
+
+    @PluginMethod
+    public void connectPozzo(PluginCall call) {
+        String host = call.getString("host", "192.168.178.252");
+        int rack = call.getInt("rack", 0);
+        int slot = call.getInt("slot", 1);
+        executor.submit(() -> {
+            try {
+                if (connectorPozzo != null) {
+                    try { connectorPozzo.close(); } catch (Exception ignore) {}
+                    connectorPozzo = null;
+                }
+                connectorPozzo = S7ConnectorFactory.buildTCPConnector()
+                    .withHost(host)
+                    .withRack(rack)
+                    .withSlot(slot)
+                    .build();
+                JSObject ret = new JSObject();
+                ret.put("connected", true);
+                call.resolve(ret);
+            } catch (Exception e) {
+                call.reject("S7 Pozzo connect failed: " + e.getMessage());
+            }
+        });
+    }
+
+    @PluginMethod
+    public void disconnectPozzo(PluginCall call) {
+        executor.submit(() -> {
+            try {
+                if (connectorPozzo != null) { connectorPozzo.close(); connectorPozzo = null; }
+                call.resolve();
+            } catch (Exception e) { call.reject(e.getMessage()); }
+        });
+    }
+
+    /** Legge dal PLC Pozzo. Stessa interfaccia di readBlock. */
+    @PluginMethod
+    public void readBlockPozzo(PluginCall call) {
+        if (connectorPozzo == null) { call.reject("Pozzo not connected"); return; }
+        int db = call.getInt("db", 0);
+        int start = call.getInt("start", 0);
+        int size = call.getInt("size", 0);
+        executor.submit(() -> {
+            try {
+                byte[] data = connectorPozzo.read(DaveArea.DB, db, size, start);
+                JSObject ret = new JSObject();
+                ret.put("data", Base64.encodeToString(data, Base64.NO_WRAP));
+                call.resolve(ret);
+            } catch (Exception e) { call.reject(e.getMessage()); }
+        });
+    }
+
+    /** Scrive 1 byte sul PLC Pozzo. */
+    @PluginMethod
+    public void writeBytePozzo(PluginCall call) {
+        if (connectorPozzo == null) { call.reject("Pozzo not connected"); return; }
+        int db = call.getInt("db", 0);
+        int offset = call.getInt("offset", 0);
+        int value = call.getInt("value", 0);
+        executor.submit(() -> {
+            try {
+                byte[] buf = new byte[] { (byte) (value & 0xFF) };
+                connectorPozzo.write(DaveArea.DB, db, offset, buf);
                 JSObject ret = new JSObject();
                 ret.put("ok", true);
                 call.resolve(ret);

@@ -2,6 +2,7 @@ import { PLC_IP, PING_TIMEOUT_MS } from '../config';
 import { mqttConnect, mqttSendCommand, mqttDisconnect, onMqttData, onMqttStatus } from './mqtt';
 import { s7Init, s7Connect, s7ReadAll, s7SendCommand, s7Disconnect } from './s7';
 import { s7ClimaInit } from './s7clima';
+import { s7PozzoInit, s7PozzoConnect } from './s7pozzo';
 import { buildCommand, buildStatoRequest } from './parser';
 
 let mode = null;
@@ -26,7 +27,10 @@ export async function connectionStart() {
     try {
       s7Init();
       s7ClimaInit();
+      s7PozzoInit();
       await s7Connect();
+      // Connessione POZZO — non bloccante: se il pozzo non risponde, il resto funziona
+      s7PozzoConnect().catch(e => console.warn('[S7Pozzo] connessione fallita (non critica):', e.message));
       if (statusCallback) statusCallback('local', 'connected');
       startLocalPolling();
     } catch (e) {

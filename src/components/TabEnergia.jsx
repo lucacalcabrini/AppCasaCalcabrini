@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { s7ReadEnergia, s7ReadEnergiaFast } from '../services/s7clima';
+import { s7ReadEnergiaPozzo } from '../services/s7pozzo';
 
 const POLL_FAST_MS  = 5000;  // aggiorna kW istantaneo ogni 5s
 const POLL_FULL_MS  = 60000; // aggiorna history ogni 60s
@@ -146,9 +147,13 @@ export default function TabEnergia({ connMode }) {
   // Lettura completa (con history) — ogni minuto
   const pollFull = useCallback(async () => {
     try {
-      const d = await s7ReadEnergia();
-      if (d) { setEnergia(d); setError(false); }
-      else setError(true);
+      const [d, pz] = await Promise.allSettled([s7ReadEnergia(), s7ReadEnergiaPozzo()]);
+      const casa = d.status === 'fulfilled' ? d.value : null;
+      const pozzo = pz.status === 'fulfilled' ? pz.value : null;
+      if (casa) {
+        setEnergia({ ...casa, pozzo });
+        setError(false);
+      } else setError(true);
     } catch (e) {
       console.warn('[Energia] poll full error:', e.message);
       setError(true);
@@ -158,11 +163,13 @@ export default function TabEnergia({ connMode }) {
   // Lettura veloce (solo kW istantaneo) — ogni 5s
   const pollFast = useCallback(async () => {
     try {
-      const d = await s7ReadEnergiaFast();
-      if (d) {
+      const [d, pz] = await Promise.allSettled([s7ReadEnergiaFast(), s7ReadEnergiaPozzo()]);
+      const fast = d.status === 'fulfilled' ? d.value : null;
+      const pozzo = pz.status === 'fulfilled' ? pz.value : null;
+      if (fast) {
         setEnergia(prev => prev
-          ? { ...prev, casa: { ...prev.casa, kw: d.casa.kw, kwhDay: d.casa.kwhDay, kwhHour: d.casa.kwhHour } }
-          : d
+          ? { ...prev, casa: { ...prev.casa, kw: fast.casa.kw, kwhDay: fast.casa.kwhDay, kwhHour: fast.casa.kwhHour }, pozzo }
+          : { ...fast, pozzo }
         );
       }
     } catch (e) {
@@ -208,14 +215,16 @@ export default function TabEnergia({ connMode }) {
     );
   }
 
-  const totaleKw = energia.casa?.kw ?? 0;
+  const casaKw  = energia.casa?.kw  ?? 0;
+  const pozzoKw = energia.pozzo?.kw ?? 0;
+  const totaleKw = casaKw + pozzoKw;
 
   return (
     <>
       {/* Totale istantaneo */}
       <div className="card" style={{ textAlign: 'center', marginBottom: 12 }}>
         <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 4 }}>
-          Potenza istantanea
+          Potenza totale istantanea
         </div>
         <div style={{ fontSize: 42, fontWeight: 700, color: totaleKw > 5 ? 'var(--accent-red)' : totaleKw > 3 ? 'var(--accent-amber)' : 'var(--accent-green)' }}>
           {totaleKw.toFixed(2)}
@@ -226,8 +235,11 @@ export default function TabEnergia({ connMode }) {
       <div className="section-title">Contatori</div>
       <EnergyCard icona="🏠" nome="Casa" data={energia.casa} />
 
-      {/* Grafico storico 7 giorni */}
+      {/* Grafico storico 7 giorni Casa */}
       {energia.casa?.history && <Storia7Giorni history={energia.casa.history} />}
+
+      {/* Pompa Pozzo */}
+      {energia.pozzo && <EnergyCard icona="💧" nome="Pompa Pozzo" data={energia.pozzo} />}
     </>
   );
 }
