@@ -5,9 +5,11 @@ import {
   setForcedMode, getForcedMode,
 } from './services/connection';
 import { DEVICES, ALARMS } from './config';
-import TabLuci from './components/TabLuci';
-import TabClima from './components/TabClima';
-import TabAllarmi from './components/TabAllarmi';
+import TabLuci     from './components/TabLuci';
+import TabClima    from './components/TabClima';
+import TabImpianti from './components/TabImpianti';
+import TabEnergia  from './components/TabEnergia';
+import TabAllarmi  from './components/TabAllarmi';
 import UpdateBanner from './components/UpdateBanner';
 
 const defaultDevices = DEVICES
@@ -19,43 +21,39 @@ const defaultAlarms = ALARMS
   .filter(Boolean);
 
 const TABS = [
-  { key: 'luci',    label: 'Luci',    icon: '💡' },
-  { key: 'clima',   label: 'Clima',   icon: '🌡️' },
-  { key: 'allarmi', label: 'Allarmi', icon: '🔔' },
+  { key: 'luci',      label: 'Luci',      icon: '💡' },
+  { key: 'clima',     label: 'Clima',     icon: '🌡️' },
+  { key: 'impianti',  label: 'Impianti',  icon: '⚙️' },
+  { key: 'energia',   label: 'Energia',   icon: '⚡' },
+  { key: 'allarmi',   label: 'Allarmi',   icon: '🔔' },
 ];
 
 // Ciclo dei modi: auto → in casa → remoto → auto
-const MODE_CYCLE  = [null, 'local', 'remote'];
-const MODE_ICON   = { null: '🔄', local: '🏠', remote: '☁️' };
-const MODE_LABEL  = { null: 'Auto', local: 'In Casa', remote: 'Remoto' };
+const MODE_CYCLE = [null, 'local', 'remote'];
+const MODE_ICON  = { null: '🔄', local: '🏠', remote: '☁️' };
+const MODE_LABEL = { null: 'Auto', local: 'In Casa', remote: 'Remoto' };
 
 export default function App() {
-  const [tab, setTab] = useState('luci');
-  const [devices, setDevices] = useState(defaultDevices);
-  const [alarms, setAlarms] = useState(defaultAlarms);
-  const [connMode, setConnMode] = useState(null);
+  const [tab, setTab]               = useState('luci');
+  const [devices, setDevices]       = useState(defaultDevices);
+  const [alarms, setAlarms]         = useState(defaultAlarms);
+  const [connMode, setConnMode]     = useState(null);
   const [connStatus, setConnStatus] = useState('connecting');
   const [forcedMode, setForcedModeState] = useState(getForcedMode());
 
   useEffect(() => {
-    onData((data) => {
-      setDevices(data.devices);
-      setAlarms(data.alarms);
-    });
+    onData((data) => { setDevices(data.devices); setAlarms(data.alarms); });
     onStatus((mode, status) => {
       setConnMode(mode);
       setConnStatus(status);
-      if (mode === 'remote' && status === 'connected') {
-        requestFullState();
-      }
+      if (mode === 'remote' && status === 'connected') requestFullState();
     });
     connectionStart();
-    return () => { connectionStop(); };
+    return () => connectionStop();
   }, []);
 
-  // Cambia modalità e riavvia la connessione
   const handleModeSwitch = useCallback(async () => {
-    const idx = MODE_CYCLE.indexOf(getForcedMode());
+    const idx  = MODE_CYCLE.indexOf(getForcedMode());
     const next = MODE_CYCLE[(idx + 1) % MODE_CYCLE.length];
     setForcedMode(next);
     setForcedModeState(next);
@@ -68,23 +66,13 @@ export default function App() {
   }, []);
 
   const handleToggle = useCallback(async (idx, currentState) => {
-    setDevices(prev => prev.map(d =>
-      d.idx === idx ? { ...d, acceso: !currentState } : d
-    ));
-    try {
-      await sendCommand(idx, !currentState);
-    } catch (e) {
-      setDevices(prev => prev.map(d =>
-        d.idx === idx ? { ...d, acceso: currentState } : d
-      ));
-    }
+    setDevices(prev => prev.map(d => d.idx === idx ? { ...d, acceso: !currentState } : d));
+    try { await sendCommand(idx, !currentState); }
+    catch (e) { setDevices(prev => prev.map(d => d.idx === idx ? { ...d, acceso: currentState } : d)); }
   }, []);
 
   const handleSpegniTutte = useCallback(async () => {
-    const accese = devices.filter(d => d.acceso);
-    for (const d of accese) {
-      await sendCommand(d.idx, false);
-    }
+    for (const d of devices.filter(d => d.acceso)) await sendCommand(d.idx, false);
   }, [devices]);
 
   const allarmiAttivi = alarms.filter(a => a.attivo).length;
@@ -120,15 +108,11 @@ export default function App() {
       </div>
 
       <div className="content">
-        {tab === 'luci' && (
-          <TabLuci
-            devices={devices}
-            onToggle={handleToggle}
-            onSpegniTutte={handleSpegniTutte}
-          />
-        )}
-        {tab === 'clima' && <TabClima devices={devices} />}
-        {tab === 'allarmi' && <TabAllarmi alarms={alarms} />}
+        {tab === 'luci'     && <TabLuci devices={devices} onToggle={handleToggle} onSpegniTutte={handleSpegniTutte} />}
+        {tab === 'clima'    && <TabClima devices={devices} connMode={connMode} />}
+        {tab === 'impianti' && <TabImpianti connMode={connMode} />}
+        {tab === 'energia'  && <TabEnergia connMode={connMode} />}
+        {tab === 'allarmi'  && <TabAllarmi alarms={alarms} />}
       </div>
 
       <div className="tab-bar">

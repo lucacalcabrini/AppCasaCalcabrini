@@ -279,3 +279,231 @@ body {
   border: none; font-size: 18px; padding: 4px 8px;
   cursor: pointer;
 }
+
+/* ── Segmented Control ── */
+.segmented {
+  display: flex;
+  background: var(--bg-input);
+  border-radius: 10px;
+  padding: 3px;
+  gap: 3px;
+}
+.seg-btn {
+  flex: 1; padding: 6px 10px;
+  background: transparent; border: none;
+  border-radius: 8px;
+  color: var(--text-muted);
+  font-family: var(--font-body); font-size: 12px; font-weight: 700;
+  cursor: pointer; transition: all 0.2s;
+  -webkit-tap-highlight-color: transparent;
+}
+.seg-btn.active {
+  background: var(--accent-primary); color: white;
+}
+.seg-btn.active.danger {
+  background: var(--accent-red);
+}
+
+/* ── Tab Clima — zona card ── */
+.clima-stagione-bar {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 12px 0 4px;
+  margin-bottom: 4px;
+}
+.clima-stagione-label {
+  font-size: 12px; font-weight: 700; color: var(--text-muted);
+  text-transform: uppercase; letter-spacing: 1px;
+}
+
+.zona-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 14px 14px 12px;
+  margin-bottom: 10px;
+}
+
+.zona-card-top {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 10px;
+}
+.zona-left {
+  display: flex; align-items: center; gap: 10px;
+}
+.zona-icona { font-size: 22px; }
+.zona-nome  { font-size: 14px; font-weight: 600; }
+.zona-stato {
+  font-size: 11px; color: var(--text-muted); margin-top: 2px;
+}
+.zona-stato.riscalda { color: var(--accent-red); }
+
+.zona-temp-att {
+  font-family: var(--font-mono);
+  font-size: 26px; font-weight: 700;
+}
+
+/* Barra valvola */
+.valvola-row {
+  display: flex; align-items: center; gap: 10px;
+  margin-bottom: 10px;
+}
+.valvola-bar {
+  flex: 1; height: 6px;
+  background: var(--bg-input);
+  border-radius: 3px; overflow: hidden;
+}
+.valvola-fill {
+  height: 100%;
+  background: var(--accent-primary);
+  border-radius: 3px;
+  transition: width 0.6s ease;
+}
+.valvola-pct {
+  font-size: 11px; font-family: var(--font-mono);
+  color: var(--text-secondary); min-width: 32px; text-align: right;
+}
+
+/* Controlli zona */
+.zona-controls {
+  display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+}
+.zona-autoман {
+  display: flex;
+  background: var(--bg-input);
+  border-radius: 8px;
+  padding: 2px; gap: 2px;
+}
+.mode-btn {
+  padding: 5px 10px;
+  background: transparent; border: none;
+  border-radius: 6px;
+  color: var(--text-muted);
+  font-size: 11px; font-weight: 700; font-family: var(--font-mono);
+  cursor: pointer; transition: all 0.2s;
+}
+.mode-btn.active { background: var(--bg-card-hover); color: var(--text-primary); }
+
+.setpoint-ctrl {
+  display: flex; align-items: center; gap: 6px; margin-left: auto;
+}
+.setpoint-label {
+  font-size: 11px; color: var(--text-muted); font-weight: 600;
+  text-transform: uppercase; letter-spacing: 0.5px;
+}
+.sp-btn {
+  width: 32px; height: 32px;
+  background: var(--bg-input); border: 1px solid var(--border);
+  border-radius: 8px; color: var(--text-primary);
+  font-size: 20px; font-weight: 300; line-height: 1;
+  cursor: pointer; display: flex; align-items: center; justify-content: center;
+  -webkit-tap-highlight-color: transparent;
+  transition: background 0.15s;
+}
+.sp-btn:active { background: var(--accent-primary); border-color: var(--accent-primary); }
+.sp-btn:disabled { opacity: 0.4; }
+.sp-val {
+  font-family: var(--font-mono); font-size: 16px; font-weight: 700;
+  min-width: 68px; text-align: center; color: var(--text-primary);
+}
+
+.zona-locked-bar {
+  margin-top: 8px;
+  font-size: 11px; color: var(--text-muted);
+  text-align: center; padding: 6px;
+  background: var(--bg-input); border-radius: 8px;
+}
+
+/* ── Tab Impianti ── */
+.impianto-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 14px 14px 12px;
+  margin-bottom: 10px;
+  transition: border-color 0.2s;
+}
+.impianto-card.on { border-color: var(--accent-primary); }
+
+.impianto-header {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 12px;
+}
+.impianto-title { display: flex; align-items: center; gap: 10px; }
+.impianto-icona { font-size: 22px; }
+.impianto-nome  { font-size: 14px; font-weight: 700; }
+
+.impianto-badge {
+  font-size: 10px; font-weight: 700; font-family: var(--font-mono);
+  padding: 3px 10px; border-radius: 20px;
+}
+.badge-on  { background: #052e16; color: var(--accent-green); }
+.badge-off { background: var(--bg-input); color: var(--text-muted); }
+
+.impianto-temp-row {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 8px;
+}
+.impianto-temp-label { font-size: 12px; color: var(--text-secondary); }
+.impianto-temp-val   { font-family: var(--font-mono); font-size: 18px; font-weight: 700; color: var(--accent-orange); }
+
+.impianto-controls {
+  display: flex; align-items: center; gap: 10px;
+  margin-top: 12px;
+}
+
+/* Pompa Pozzo */
+.pozzo-status-row {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 6px 0;
+  border-bottom: 1px solid var(--border);
+}
+.pozzo-status-row:last-of-type { border-bottom: none; }
+.pozzo-status-label { font-size: 12px; color: var(--text-secondary); }
+.pozzo-status-val   { font-size: 12px; font-weight: 700; font-family: var(--font-mono); }
+.val-ok    { color: var(--accent-green); }
+.val-error { color: var(--accent-red); }
+.val-warn  { color: var(--accent-amber); }
+
+.btn-reset-ev {
+  width: 100%; margin-top: 12px; padding: 10px;
+  background: #1c1917; border: 1px solid #78350f;
+  color: var(--accent-amber); border-radius: 10px;
+  font-family: var(--font-body); font-size: 13px; font-weight: 700;
+  cursor: pointer; transition: all 0.2s;
+}
+.btn-reset-ev.flash { background: #78350f; color: white; }
+
+/* ── Tab Energia ── */
+.energia-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 16px;
+  margin-bottom: 12px;
+}
+.energia-header {
+  display: flex; align-items: center; gap: 10px;
+  margin-bottom: 12px;
+}
+.energia-icona { font-size: 20px; }
+.energia-nome  { font-size: 13px; font-weight: 700; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px; }
+
+.energia-kw {
+  display: flex; align-items: baseline; gap: 6px;
+  margin-bottom: 12px;
+}
+.energia-kw-val  { font-family: var(--font-mono); font-size: 40px; font-weight: 700; line-height: 1; }
+.energia-kw-unit { font-size: 16px; color: var(--text-secondary); }
+
+.energia-grid {
+  display: grid; grid-template-columns: repeat(3, 1fr);
+  gap: 8px; margin-top: 12px;
+}
+.energia-stat {
+  background: var(--bg-input);
+  border-radius: 10px; padding: 10px 8px;
+  text-align: center;
+}
+.energia-stat-val   { display: block; font-family: var(--font-mono); font-size: 16px; font-weight: 700; }
+.energia-stat-label { display: block; font-size: 10px; color: var(--text-muted); margin-top: 3px; text-transform: uppercase; letter-spacing: 0.5px; }
+
