@@ -142,10 +142,54 @@ Struttura da ricevere dall'utente.
 
 ---
 
-## DB2, DB3, DB15 (non usati dall'app)
+---
+
+## DB2 — GestioneLuci ✅ documentato (non usato dall'app — controllo via DB6)
+
+**Nota**: l'app usa DB6 per leggere/scrivere le luci. DB2 è utile solo per funzioni avanzate future (es. livelli cucina).
+
+### Luci presenti in DB2
+
+| Nome DB2 | Tipo | Base DB2 | Nota |
+|---|---|---|---|
+| LuciCucina | Luci_3_Pulse | 0 | **3 livelli** — ActCounter, OutLuce_1/2/3 |
+| luceCantina | Luci_1P | 62 | |
+| LuceBagnoBlu | Luci_1P | 122 | |
+| LuceSala | Luci_1P | 182 | |
+| LuceScale | Luci_1P | 242 | |
+| LuceCameretta | Luci_1P | 302 | |
+| LuceCamera | Luci_1P | 362 | |
+| LuceBagnoBianco | Luci_1P | 422 | |
+| LuceStudio | Luci_1P | 482 | |
+| LuceIngresso | Luci_1P | 542 | |
+| LuceEsterna | Luci_1P | 602 | |
+| LuceCrepuscolare | Luci_1P | 662 | |
+
+### Struttura Luci_1P (offset relativi a base)
+
+| Campo | Offset rel | Tipo | Note |
+|---|---|---|---|
+| `DatiHMI.Manuale.PB_Luce` | +10.0 | Bool bit 0 | toggle HMI |
+| `DatiHMI.Manuale.PB_Off` | +10.1 | Bool bit 1 | spegni HMI |
+| `DatiHMI.Status.OutLuce` | +12.1 | Bool bit 1 | stato output |
+| `DatiHMI.Enable.Enable` | +14.0 | Bool bit 0 | abilitazione |
+
+### Struttura Luci_3_Pulse — solo LuciCucina (3 livelli luce)
+
+| Campo | Offset assoluto DB2 | Tipo | Note |
+|---|---|---|---|
+| `DatiHMI.Status.OutLuce_1` | 18.1 | Bool bit 1 | livello 1 acceso |
+| `DatiHMI.Status.OutLuce_2` | 18.2 | Bool bit 2 | livello 2 acceso |
+| `DatiHMI.Status.OutLuce_3` | 18.3 | Bool bit 3 | livello 3 acceso |
+| `DatiHMI.Status.ActCounter` | 20 | Int16 | quanti livelli attivi (0-3) |
+
+> **Idea futura**: leggere DB2 byte 20 (ActCounter) per mostrare il livello cucina nell'app invece di semplice ON/OFF.
+
+---
+
+## DB3, DB15 (non usati dall'app)
 
 | DB | Nome | Contenuto |
 |---|---|---|
-| DB2 | GestioneLuci | FB luci (debug) |
-| DB3 | GestioneAllarme_DB | ControlloAccessi 16 sensori |
+| DB3 | GestioneAllarme_DB | ControlloAccessi 16 sensori porte/finestre |
 | DB15 | Segnalazioni | 8 byte Bool stati sensori |
