@@ -240,6 +240,7 @@ export default function TabEnergia({ connMode }) {
 
       {/* Pompa Pozzo */}
       {energia.pozzo && <EnergyCard icona="💧" nome="Pompa Pozzo" data={energia.pozzo} />}
+      {energia.pozzo?.history && <Storia7Giorni history={energia.pozzo.history} />}
     </>
   );
 }

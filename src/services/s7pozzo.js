@@ -108,14 +108,37 @@ export async function s7WritePozzoResetEV() {
 }
 
 // ── Lettura energia POZZO (DB11 — stessa struttura del PLC principale) ────────
+// Consumo_KWH: Array[1..7] of Struct { KWH[0..23]: 96B, Data: 2B, Total_KWH: 4B }
+// stride 102B, parte da offset 32
+
+const ENERGIA_CONSUMO_START = 32;
+const ENERGIA_DAY_STRIDE    = 102;
 
 export async function s7ReadEnergiaPozzo() {
   if (!plugin) throw new Error('S7Pozzo non disponibile');
-  const r = await plugin.readBlockPozzo({ db: DB_ENERGIA, start: 0, size: 32 });
+  // Legge header (32B) + Consumo_KWH 7 giorni (714B) + Indice (2B) = 748B
+  const r = await plugin.readBlockPozzo({ db: DB_ENERGIA, start: 0, size: 748 });
   const dv = new DataView(b64ToBytes(r.data).buffer);
-  return {
-    kw:      dv.getFloat32(8,  false),
-    kwhDay:  dv.getFloat32(12, false),
-    kwhHour: dv.getFloat32(20, false),
-  };
+
+  const kw      = dv.getFloat32(8,  false);
+  const kwhDay  = dv.getFloat32(12, false);
+  const kwhHour = dv.getFloat32(20, false);
+
+  // 7-day history (stessa logica del PLC principale)
+  const history = [];
+  for (let d = 0; d < 7; d++) {
+    const base = ENERGIA_CONSUMO_START + d * ENERGIA_DAY_STRIDE;
+    const hours = [];
+    for (let h = 0; h < 24; h++) {
+      hours.push(dv.getFloat32(base + h * 4, false));
+    }
+    const dateDays = dv.getUint16(base + 96, false);
+    const date = dateDays > 0
+      ? new Date(Date.UTC(1990, 0, 1) + dateDays * 86400000).toISOString().slice(0, 10)
+      : null;
+    const total = dv.getFloat32(base + 98, false);
+    history.push({ date, total, hours });
+  }
+
+  return { kw, kwhDay, kwhHour, history };
 }
